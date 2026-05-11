@@ -1,9 +1,16 @@
+// 1. 렌더(Render) 서버의 응답 체크를 통과하기 위한 가짜 웹 서버 (필수!)
+// 이 코드가 없으면 렌더가 "서비스 응답 없음"으로 간주하고 강제로 종료시킵니다.
+const http = require('http');
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Engine is running');
+}).listen(process.env.PORT || 10000);
+
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const admin = require('firebase-admin');
 
-// 1. 파이어베이스 설정 (환경 변수 FIREBASE_SERVICE_ACCOUNT를 직접 읽음)
-// 🚨 이 부분이 파일 대신 환경 변수를 사용하도록 수정된 핵심입니다.
+// 2. 파이어베이스 설정 (환경 변수 FIREBASE_SERVICE_ACCOUNT를 직접 읽음)
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
@@ -12,14 +19,14 @@ admin.initializeApp({
 });
 const db = admin.database();
 
-// 2. 투야 설정 (환경 변수 사용)
+// 3. 투야 설정 (환경 변수 사용)
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
   accessKey: process.env.TUYA_ACCESS_ID,
   secretKey: process.env.TUYA_SECRET_KEY,
 });
 
-// 3. 데이터 수집 함수
+// 4. 데이터 수집 함수
 async function collectAndSaveData() {
   console.log(`[${new Date().toLocaleString()}] 데이터 수집 시도 중...`);
   try {
@@ -63,6 +70,6 @@ async function collectAndSaveData() {
   }
 }
 
-// 실행
+// 5. 실행
 collectAndSaveData();
 setInterval(collectAndSaveData, 600000); // 10분마다 실행
