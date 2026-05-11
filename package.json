@@ -6,7 +6,7 @@
     "start": "node test.js"
   },
   "dependencies": {
-    "@tuya/tuya-connector-nodejs": "^1.0.10",
-    "firebase-admin": "^11.11.1"
+    "@tuya/tuya-connector-nodejs": "latest",
+    "firebase-admin": "latest"
   }
 }
