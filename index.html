@@ -131,6 +131,7 @@
           </div>
           <div class="data-row"><span>온도</span><span class="value temp">${info.temperature}°C</span></div>
           <div class="data-row"><span>습도</span><span class="value humi">${info.humidity}%</span></div>
+          <div class="data-row"><span>배터리</span><span class="value" style="color: ${info.battery <= 20 ? '#e74c3c' : '#27ae60'}; font-size: 1.1rem;">${info.battery || 0}%</span></div>
           <div class="time">🕒 ${info.lastUpdated}</div>
         `;
         dashboard.appendChild(card);
@@ -193,7 +194,7 @@
       if(!snapshot.exists()) return alert("데이터가 없습니다.");
       
       // 엑셀 데이터 배열 생성 (첫 줄은 제목)
-      const excelData = [["구역", "기기 이름", "온도(°C)", "습도(%)", "기록 시간"]];
+      const excelData = [["구역", "기기 이름", "온도(°C)", "습도(%)", "배터리(%)", "기록 시간"]];
       
       const sMs = new Date(start + "T00:00:00").getTime();
       const eMs = new Date(end + "T23:59:59").getTime();
@@ -201,7 +202,7 @@
       Object.values(snapshot.val()).forEach(recs => {
         Object.entries(recs).forEach(([ts, info]) => {
           if(ts >= sMs && ts <= eMs) {
-            excelData.push([info.zone, info.name, info.temperature, info.humidity, info.time]);
+            excelData.push([info.zone, info.name, info.temperature, info.humidity, info.battery + "%", info.time]);
           }
         });
       });
