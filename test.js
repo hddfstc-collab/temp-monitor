@@ -1,4 +1,4 @@
-// 1. 렌더 서버 응답 체크용 서버
+// 1. 렌더(Render) 서버 응답 체크용 가짜 웹 서버
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -9,7 +9,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const admin = require('firebase-admin');
 
-// 2. 파이어베이스 설정
+// 2. 파이어베이스 설정 (환경 변수 사용)
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -17,20 +17,23 @@ admin.initializeApp({
 });
 const db = admin.database();
 
-// 3. 투야 설정
+// 3. 투야 설정 (환경 변수 사용)
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
   accessKey: process.env.TUYA_ACCESS_ID,
   secretKey: process.env.TUYA_SECRET_KEY,
 });
 
-// 4. 변화 감지 수집 함수
+// 4. 데이터 수집 및 변화 감지 함수
 async function collectAndSaveData() {
   console.log(`[${new Date().toLocaleString()}] 데이터 수집 시도 중...`);
   try {
     const snapshot = await db.ref('devices').once('value');
     const devices = snapshot.val();
-    if (!devices) return;
+    if (!devices) {
+      console.log("등록된 기기가 없습니다.");
+      return;
+    }
 
     for (const deviceId in devices) {
       const device = devices[deviceId];
@@ -40,32 +43,45 @@ async function collectAndSaveData() {
       });
 
       if (status.success) {
-        let currentTemp = 0; let currentHumi = 0;
+        let currentTemp = 0; 
+        let currentHumi = 0; 
+        let currentBattery = 0;
+
+        // 투야 데이터에서 온도, 습도, 배터리 값 추출
         status.result.forEach(item => {
           if (item.code === 'va_temperature') currentTemp = item.value / 10;
           if (item.code === 'va_humidity') currentHumi = item.value;
+          if (item.code === 'battery_percentage') currentBattery = item.value;
         });
 
-        // 🚨 변화 감지 로직
-        const lastTemp = device.temperature;
-        const lastHumi = device.humidity;
+        // 이전 데이터와 비교 (하나라도 변하면 저장)
+        const hasChanged = 
+          device.temperature !== currentTemp || 
+          device.humidity !== currentHumi || 
+          device.battery !== currentBattery;
 
-        // 온도나 습도가 단 0.1이라도 변했다면 저장
-        if (lastTemp !== currentTemp || lastHumi !== currentHumi) {
+        if (hasChanged) {
           const currentTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
           const timestamp = Date.now();
 
-          // 현재 상태 업데이트 (다음 비교를 위해)
+          // 실시간 상태 업데이트
           await db.ref(`devices/${deviceId}`).update({
-            temperature: currentTemp, humidity: currentHumi, lastUpdated: currentTime
+            temperature: currentTemp,
+            humidity: currentHumi,
+            battery: currentBattery,
+            lastUpdated: currentTime
           });
 
           // 히스토리 기록
           await db.ref(`history/${deviceId}/${timestamp}`).set({
-            name: device.name, zone: device.zone,
-            temperature: currentTemp, humidity: currentHumi, time: currentTime
+            name: device.name,
+            zone: device.zone,
+            temperature: currentTemp,
+            humidity: currentHumi,
+            battery: currentBattery,
+            time: currentTime
           });
-          console.log(`✨ [${device.zone}] 변화 감지! 기록함: ${currentTemp}°C / ${currentHumi}%`);
+          console.log(`✨ [${device.zone}] 변화 감지 기록 완료: ${currentTemp}°C / 배터리: ${currentBattery}%`);
         } else {
           console.log(`😴 [${device.zone}] 변화 없음 (기록 생략)`);
         }
@@ -76,6 +92,6 @@ async function collectAndSaveData() {
   }
 }
 
-// 5. 실행 (10분 주기는 유지하되, 변화 없으면 저장만 안 함)
+// 5. 엔진 실행 (10분마다 반복)
 collectAndSaveData();
 setInterval(collectAndSaveData, 600000);
