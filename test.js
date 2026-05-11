@@ -1,23 +1,30 @@
+// 1. 렌더 서버 응답 체크용 서버
+const http = require('http');
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Engine is running');
+}).listen(process.env.PORT || 10000);
+
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const admin = require('firebase-admin');
 
-// 1. 파이어베이스 설정
-const serviceAccount = require('./firebase-key.json');
+// 2. 파이어베이스 설정
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
 const db = admin.database();
 
-// 2. 투야 설정
+// 3. 투야 설정
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
-  accessKey: 'rqyqdefgxpq8akws93xe',
-  secretKey: 'ba86766479ee4a08a9426e7fe7e620b9',
+  accessKey: process.env.TUYA_ACCESS_ID,
+  secretKey: process.env.TUYA_SECRET_KEY,
 });
 
-// 3. 데이터 수집 핵심 함수
+// 4. 변화 감지 수집 함수
 async function collectAndSaveData() {
   console.log(`[${new Date().toLocaleString()}] 데이터 수집 시도 중...`);
   try {
@@ -39,28 +46,28 @@ async function collectAndSaveData() {
           if (item.code === 'va_humidity') currentHumi = item.value;
         });
 
-        // 🚨 이전 데이터와 비교 로직 추가
+        // 🚨 변화 감지 로직
         const lastTemp = device.temperature;
         const lastHumi = device.humidity;
 
-        // 온도나 습도 중 하나라도 변했으면 저장
+        // 온도나 습도가 단 0.1이라도 변했다면 저장
         if (lastTemp !== currentTemp || lastHumi !== currentHumi) {
           const currentTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
           const timestamp = Date.now();
 
-          // 최신 상태 업데이트
+          // 현재 상태 업데이트 (다음 비교를 위해)
           await db.ref(`devices/${deviceId}`).update({
             temperature: currentTemp, humidity: currentHumi, lastUpdated: currentTime
           });
 
-          // 히스토리에 기록 (변화가 있을 때만!)
+          // 히스토리 기록
           await db.ref(`history/${deviceId}/${timestamp}`).set({
             name: device.name, zone: device.zone,
             temperature: currentTemp, humidity: currentHumi, time: currentTime
           });
-          console.log(`✨ [${device.zone}] 데이터 변화 감지! 기록 완료: ${currentTemp}°C`);
+          console.log(`✨ [${device.zone}] 변화 감지! 기록함: ${currentTemp}°C / ${currentHumi}%`);
         } else {
-          console.log(`😴 [${device.zone}] 온도 변화 없음 (기록 생략)`);
+          console.log(`😴 [${device.zone}] 변화 없음 (기록 생략)`);
         }
       }
     }
@@ -69,6 +76,6 @@ async function collectAndSaveData() {
   }
 }
 
-// 10분마다 자동 실행
+// 5. 실행 (10분 주기는 유지하되, 변화 없으면 저장만 안 함)
 collectAndSaveData();
 setInterval(collectAndSaveData, 600000);
