@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>쇼핑몰 통합 온도 관제 시스템</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { background-color: #f4f7f6; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 15px; padding-bottom: 80px; }
+    h1 { text-align: center; color: #333; font-size: 1.5rem; margin-bottom: 20px; word-break: keep-all; }
+    
+    /* 관리자 플로팅 버튼 */
+    #adminToggleBtn { 
+      position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; 
+      border-radius: 50%; background: #fff; border: 2px solid #ddd; 
+      cursor: pointer; font-size: 1.2rem; opacity: 0.6; z-index: 1000; 
+      display: flex; align-items: center; justify-content: center; 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s; 
+    }
+    #adminToggleBtn.active { background: #333; color: white; border-color: #333; opacity: 1; }
+    
+    /* 관리자 패널 */
+    #adminPanel { 
+      display: none; max-width: 1200px; margin: 0 auto 20px auto; 
+      background: white; padding: 20px; border-radius: 12px; 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+    }
+    .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
+    .input-group { display: flex; flex-direction: column; gap: 5px; }
+    input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; width: 100%; }
+    
+    .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+    .btn-add { background: #2196F3; color: white; }
+    .btn-download { background: #4CAF50; color: white; }
+    
+    .divider { border-bottom: 1px solid #eee; margin: 20px 0; }
+    
+    /* 대시보드 카드 */
+    #dashboard { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+      gap: 15px; max-width: 1200px; margin: 0 auto; 
+    }
+    .card { 
+      background: white; border-radius: 12px; padding: 20px; 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 8px solid #2196F3; 
+      position: relative; 
+    }
+    .zone-tag { 
+      position: absolute; top: 15px; right: 15px; background: #f0f0f0; 
+      padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: #555; font-weight: bold; 
+    }
+    .title { font-size: 1.1rem; font-weight: bold; color: #333; margin-bottom: 15px; padding-right: 60px; }
+    .data-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .value { font-weight: bold; font-size: 1.5rem; }
+    .temp { color: #e74c3c; } .humi { color: #3498db; }
+    .time { font-size: 0.8rem; color: #aaa; text-align: right; margin-top: 15px; }
+    
+    /* 수정 버튼 */
+    .btn-edit { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.5; display: none; }
+    .btn-edit:hover { opacity: 1; }
+
+    @media (max-width: 480px) { #dashboard { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <h1>🌡️ 쇼핑몰 실시간 온도 관제 시스템</h1>
+  
+  <button id="adminToggleBtn">🔒</button>
+  
+  <div id="adminPanel">
+    <div class="admin-grid">
+      <div class="input-group"><label>온도계 ID</label><input type="text" id="newDeviceId" placeholder="Tuya ID"></div>
+      <div class="input-group"><label>기기 이름/브랜드</label><input type="text" id="newName" placeholder="예: 구찌 입구"></div>
+      <div class="input-group"><label>배치 구역</label><select id="newZone"></select></div>
+      <div class="input-group"><button id="addBtn" class="btn btn-add">➕ 기기 등록</button></div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-grid">
+      <div class="input-group"><label>조회 시작일</label><input type="date" id="startDate"></div>
+      <div class="input-group"><label>조회 종료일</label><input type="date" id="endDate"></div>
+      <div class="input-group" style="grid-column: span 2;"><button id="downloadBtn" class="btn btn-download">📊 엑셀 다운로드 (.xlsx)</button></div>
+    </div>
+  </div>
+
+  <div id="dashboard"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAmNjMyLX75e5RMP8C8Wxzj_8Y-tsGmQ1I",
+      authDomain: "temp-monitoring-8b172.firebaseapp.com",
+      databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "temp-monitoring-8b172",
+      storageBucket: "temp-monitoring-8b172.firebasestorage.app",
+      messagingSenderId: "443305373876",
+      appId: "1:443305373876:web:7b40ab0dcccf8e49b2e7e1",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const ADMIN_PW = "6011"; 
+    let isAdmin = false;
+    let latestData = null; 
+
+    // 구역 설정 (1~7구역)
+    const ZONES = ["1구역", "2구역", "3구역", "4구역", "5구역", "6구역", "7구역"];
+    const zoneSelect = document.getElementById('newZone');
+    ZONES.forEach(z => { const opt = document.createElement('option'); opt.value = z; opt.innerText = z; zoneSelect.appendChild(opt); });
+
+    function renderDashboard() {
+      const dashboard = document.getElementById('dashboard');
+      dashboard.innerHTML = '';
+      if (!latestData) return;
+
+      Object.entries(latestData).forEach(([id, info]) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const editDisplay = isAdmin ? 'inline-block' : 'none';
+        
+        card.innerHTML = `
+          <span class="zone-tag">${info.zone || '미지정'}</span>
+          <div class="title">
+            ${info.name || '이름 미설정'} 
+            <button class="btn-edit" style="display: ${editDisplay};" onclick="unifiedEdit('${id}', '${info.name}', '${info.zone}')">✏️</button>
+          </div>
+          <div class="data-row"><span>온도</span><span class="value temp">${info.temperature}°C</span></div>
+          <div class="data-row"><span>습도</span><span class="value humi">${info.humidity}%</span></div>
+          <div class="time">🕒 ${info.lastUpdated}</div>
+        `;
+        dashboard.appendChild(card);
+      });
+    }
+
+    onValue(ref(db, 'devices'), (snapshot) => { latestData = snapshot.val(); renderDashboard(); });
+
+    // 관리자 모드 토글
+    document.getElementById('adminToggleBtn').addEventListener('click', function() {
+      if (isAdmin) {
+        isAdmin = false; this.innerText = '🔒'; this.classList.remove('active');
+        document.getElementById('adminPanel').style.display = 'none';
+      } else {
+        const pw = prompt("비밀번호를 입력하세요.");
+        if (pw === ADMIN_PW) {
+          isAdmin = true; this.innerText = '🔓'; this.classList.add('active');
+          document.getElementById('adminPanel').style.display = 'block';
+        } else if (pw !== null) alert("비밀번호 불일치");
+      }
+      renderDashboard();
+    });
+
+    // 기기 등록
+    document.getElementById('addBtn').addEventListener('click', () => {
+      const id = document.getElementById('newDeviceId').value.trim();
+      const name = document.getElementById('newName').value.trim();
+      const zone = document.getElementById('newZone').value;
+      if(!id || !name) return alert("필수 입력 누락");
+      set(ref(db, `devices/${id}`), { name, zone, temperature: 0, humidity: 0, lastUpdated: "대기중" })
+        .then(() => { alert("등록 완료"); document.getElementById('newDeviceId').value = ''; document.getElementById('newName').value = ''; });
+    });
+
+    // 통합 수정 (기존/신규 기기 공통)
+    window.unifiedEdit = (id, oldName, oldZone) => {
+      const newName = prompt("수정할 이름을 입력하세요:", oldName);
+      if (newName === null) return;
+
+      const zonePrompt = `변경할 구역 번호를 입력하세요 (1~7):\n현재: ${oldZone}`;
+      const zoneNum = prompt(zonePrompt, oldZone.replace('구역', ''));
+      if (zoneNum === null) return;
+      
+      const newZone = zoneNum.includes('구역') ? zoneNum : zoneNum + "구역";
+      
+      if (ZONES.includes(newZone)) {
+        update(ref(db, `devices/${id}`), { name: newName, zone: newZone })
+          .then(() => alert("수정 완료"));
+      } else {
+        alert("1~7 사이의 숫자만 가능합니다.");
+      }
+    };
+
+    // 🚀 진짜 엑셀(.xlsx) 다운로드 기능
+    document.getElementById('downloadBtn').addEventListener('click', async () => {
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      if(!start || !end) return alert("시작일과 종료일을 선택해주세요.");
+
+      const snapshot = await get(ref(db, 'history'));
+      if(!snapshot.exists()) return alert("데이터가 없습니다.");
+      
+      // 엑셀 데이터 배열 생성 (첫 줄은 제목)
+      const excelData = [["구역", "기기 이름", "온도(°C)", "습도(%)", "기록 시간"]];
+      
+      const sMs = new Date(start + "T00:00:00").getTime();
+      const eMs = new Date(end + "T23:59:59").getTime();
+
+      Object.values(snapshot.val()).forEach(recs => {
+        Object.entries(recs).forEach(([ts, info]) => {
+          if(ts >= sMs && ts <= eMs) {
+            excelData.push([info.zone, info.name, info.temperature, info.humidity, info.time]);
+          }
+        });
+      });
+
+      if(excelData.length === 1) return alert("해당 기간에 수집된 데이터가 없습니다.");
+
+      // 엑셀 파일 생성 과정
+      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "온도기록");
+      
+      // 파일 다운로드 실행
+      XLSX.writeFile(workbook, `쇼핑몰_온도기록_${start}_${end}.xlsx`);
+    });
+  </script>
+</body>
+</html>
