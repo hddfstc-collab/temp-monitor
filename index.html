@@ -1,81 +1,248 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>통합 온도 관제 시스템</title>
+    <title>무역센터점 통합 온도 관제</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
-        :root { --8f: #1a73e8; --9f: #8e24aa; --danger: #e74c3c; --safe: #27ae60; --cold: #3498db; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #f5f7fa; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 10px; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .toggle-box { background: #eee; border-radius: 20px; padding: 4px; display: flex; gap: 5px; }
-        .toggle-box button { border: none; padding: 8px 15px; border-radius: 16px; cursor: pointer; font-weight: bold; background: none; display: flex; align-items: center; gap: 5px; }
-        .toggle-box button.active { background: #333; color: white; }
+        :root {
+            --8f: #1a73e8;
+            --9f: #8e24aa;
+            --danger: #e74c3c;
+            --safe: #27ae60;
+            --cold: #3498db;
+        }
 
-        /* 지도 레이아웃 (스크롤 방식) */
-        #map-container { display: none; width: 100%; max-width: 1280px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #eee; }
-        .map-section { background: white; margin-bottom: 20px; position: relative; border-bottom: 2px solid #ddd; }
-        .map-title { padding: 10px; font-weight: 900; background: #f8f9fa; border-bottom: 1px solid #eee; }
-        .map-wrapper { position: relative; width: 100%; padding-top: 56.25%; background-size: cover; background-repeat: no-repeat; background-position: center; }
-        
-        .status-dot { position: absolute; width: 32px; height: 32px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 8px rgba(0,0,0,0.3); cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .status-dot b { font-size: 10px; color: white; pointer-events: none; }
-        .status-dot.dragging { opacity: 0.7; scale: 1.4; z-index: 100; cursor: grabbing; border-color: yellow; }
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-        /* 리스트 스타일 */
-        .floor-section { margin-bottom: 30px; }
-        .floor-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 15px; padding-left: 12px; border-left: 6px solid #333; display: flex; align-items: center; height: 24px; }
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        @media (min-width: 1024px) { .grid { grid-template-columns: repeat(4, 1fr); } }
-        .card { background: white; border-radius: 14px; padding: 15px; border-top: 6px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 10px;
+        }
+
+        /* 헤더 영역 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            font-size: 1.1rem;
+            margin: 0;
+            color: #333;
+        }
+
+        /* 상단 모드 전환 아이콘 버튼 */
+        .toggle-box {
+            background: #eee;
+            border-radius: 20px;
+            padding: 4px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .toggle-box button {
+            border: none;
+            padding: 8px;
+            width: 48px;
+            height: 40px;
+            justify-content: center;
+            border-radius: 15px;
+            cursor: pointer;
+            background: none;
+            display: flex;
+            align-items: center;
+            font-size: 1.3rem;
+            transition: 0.2s;
+        }
+
+        .toggle-box button.active {
+            background: #333;
+            color: white;
+        }
+
+        /* 리스트 모드 스타일 */
+        .floor-section {
+            margin-bottom: 30px;
+        }
+
+        .floor-title {
+            font-size: 1.4rem;
+            font-weight: 900;
+            margin-bottom: 15px;
+            padding-left: 12px;
+            border-left: 6px solid #333;
+            display: flex;
+            align-items: center;
+            height: 28px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        @media (min-width: 1024px) {
+            .grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 18px;
+            border-top: 6px solid #ccc;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+        }
+
         .card.f8 { border-top-color: var(--8f); }
         .card.f9 { border-top-color: var(--9f); }
-        .zone-label { font-size: 11px; color: #888; font-weight: bold; margin-bottom: 3px; display: block; }
-        .brand-label { font-size: 15px; font-weight: 800; color: #222; margin-bottom: 8px; }
-        .temp-main { font-size: 2rem; font-weight: 900; color: var(--danger); }
 
-        /* 관리자 패널 */
-        #adminPanel { display: none; background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 2px solid #333; }
-        .admin-btns { display: flex; gap: 5px; margin-top: 5px; }
-        .btn-add { background: var(--8f); color: white; flex: 2; border: none; }
-        .btn-del { background: #333; color: white; flex: 1; border: none; }
-        .btn-excel { background: #27ae60; color: white; margin-top: 5px; border: none; width: 100%; }
+        .zone-label { font-size: 11px; color: #888; font-weight: bold; margin-bottom: 4px; display: block; }
+        .brand-label { font-size: 16px; font-weight: 800; color: #222; margin-bottom: 10px; }
+        .temp-main { font-size: 2.2rem; font-weight: 900; color: var(--danger); letter-spacing: -1px; }
 
-        /* 모달 (그래프) */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: white; width: 95%; max-width: 800px; height: 70%; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
-        #adminToggle { position: fixed; bottom: 20px; left: 20px; width: 44px; height: 44px; border-radius: 50%; background: #333; color: white; border: none; opacity: 0.5; z-index: 1000; }
-        input, select, button { height: 40px; border-radius: 8px; border: 1px solid #ddd; padding: 0 10px; font-weight: bold; }
+        /* 지도 모드 스크롤 레이아웃 */
+        #map-container {
+            display: none;
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            height: calc(100vh - 100px);
+            overflow-y: auto;
+            border-radius: 15px;
+            border: 1px solid #ddd;
+            background: #f0f0f0;
+        }
+
+        .map-section { background: white; margin-bottom: 25px; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .map-title { padding: 12px; font-weight: 900; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 20; font-size: 1.1rem; }
+        .map-wrapper { position: relative; width: 100%; padding-top: 56.25%; background-size: cover; background-repeat: no-repeat; background-position: center; }
+
+        /* 지도 핀(Dot) 스타일 */
+        .status-dot {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: transform 0.2s;
+        }
+
+        .status-dot b { font-size: 11px; color: white; pointer-events: none; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .status-dot.dragging { opacity: 0.8; scale: 1.5; z-index: 100; cursor: grabbing; border-color: #ffeb3b; }
+
+        /* 관리자 패널(수정모드) */
+        #adminPanel {
+            display: none;
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #333;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .admin-btns { display: flex; gap: 8px; margin-top: 10px; }
+        .btn-add { background: var(--8f); color: white; flex: 2; border: none; font-weight: bold; border-radius: 10px; height: 45px; cursor: pointer; }
+        .btn-del { background: #333; color: white; flex: 1; border: none; font-weight: bold; border-radius: 10px; height: 45px; cursor: pointer; }
+        .btn-excel { background: #27ae60; color: white; margin-top: 10px; border: none; width: 100%; font-weight: bold; border-radius: 10px; height: 45px; cursor: pointer; font-size: 1rem; }
+
+        /* 모달 및 그래프 영역 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 95%;
+            max-width: 850px;
+            height: 85%;
+            border-radius: 25px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .filter-bar { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; }
+        .date-inputs { display: flex; gap: 8px; margin-bottom: 12px; }
+        .period-btns { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 5px; }
+        .period-btns button { flex: 1; min-width: 55px; height: 32px; font-size: 12px; background: #fff; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; }
+        .period-btns button:active { background: #eee; }
+
+        #adminToggle { position: fixed; bottom: 25px; left: 25px; width: 50px; height: 50px; border-radius: 50%; background: #333; color: white; border: none; opacity: 0.6; z-index: 1000; font-size: 20px; cursor: pointer; }
+        input, select { height: 42px; border-radius: 10px; border: 1px solid #ccc; padding: 0 12px; font-size: 14px; }
     </style>
 </head>
+
 <body>
 
     <header>
-        <h1 style="font-size: 1rem; margin:0;">🌡️ 통합 관제 <small id="totalCount">(0/14)</small></h1>
+        <h1>무역센터점 통합 온도 관제 <small id="totalCount" style="color:#888; font-weight:normal;">(0/14)</small></h1>
         <div class="toggle-box">
-            <button id="btn-list" class="active" onclick="changeView('list')"><span>☰</span> 리스트</button>
-            <button id="btn-map" onclick="changeView('map')"><span>🗺️</span> 지도</button>
+            <button id="btn-list" class="active" onclick="changeView('list')" title="리스트 보기">☰</button>
+            <button id="btn-map" onclick="changeView('map')" title="지도 보기">🗺️</button>
         </div>
     </header>
 
     <div id="adminPanel">
-        <div style="font-size:12px; font-weight:bold; margin-bottom:5px;">🛠️ 기기 관리 & 데이터 추출</div>
-        <input type="text" id="devId" placeholder="기기 ID" style="width:100%; margin-bottom:5px;">
-        <input type="text" id="devName" placeholder="브랜드명" style="width:100%; margin-bottom:5px;">
-        <div style="display:flex; gap:5px; margin-bottom:5px;">
-            <select id="devFloor" style="flex:1;"><option value="9층">9층</option><option value="8층">8층</option></select>
-            <select id="devZone" style="flex:1;"><option value="1구역">1구역</option><option value="2구역">2구역</option><option value="3구역">3구역</option><option value="4구역">4구역</option></select>
+        <div style="font-weight:bold; margin-bottom:10px; color:#333;">🔧 기기 정보 관리</div>
+        <input type="text" id="devId" placeholder="기기 ID (리스트에서 클릭 시 자동입력)" style="width:100%; margin-bottom:8px;">
+        <input type="text" id="devName" placeholder="브랜드/매장 명칭" style="width:100%; margin-bottom:8px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <select id="devFloor" style="flex:1;">
+                <option value="9층">9층</option>
+                <option value="8층">8층</option>
+            </select>
+            <select id="devZone" style="flex:1;">
+                <option value="1구역">1구역</option>
+                <option value="2구역">2구역</option>
+                <option value="3구역">3구역</option>
+                <option value="4구역">4구역</option>
+            </select>
         </div>
         <div class="admin-btns">
-            <button class="btn-add" onclick="addDev()">기기 저장/수정</button>
+            <button class="btn-add" onclick="addDev()">저장 및 업데이트</button>
             <button class="btn-del" onclick="deleteDev()">기기 삭제</button>
         </div>
-        <button class="btn-excel" onclick="downloadExcel()">📊 엑셀 다운로드 (전체 기록)</button>
+        <button class="btn-excel" onclick="downloadExcel()">📊 엑셀 데이터 추출 (.xlsx)</button>
     </div>
 
     <div id="list-container">
@@ -90,160 +257,410 @@
     </div>
 
     <div id="map-container">
-        <div class="map-section"><div class="map-title">9F 실시간 도면</div><div class="map-wrapper" id="map9-box"></div></div>
-        <div class="map-section"><div class="map-title">8F 실시간 도면</div><div class="map-wrapper" id="map8-box"></div></div>
+        <div class="map-section">
+            <div class="map-title" style="color:var(--9f);">9F 평면도 관제</div>
+            <div class="map-wrapper" id="map9-box"></div>
+        </div>
+        <div class="map-section">
+            <div class="map-title" style="color:var(--8f);">8F 평면도 관제</div>
+            <div class="map-wrapper" id="map8-box"></div>
+        </div>
     </div>
 
     <div id="modal" class="modal">
         <div class="modal-content">
-            <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                <b id="mTitle">-</b><button onclick="closeModal()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+            <div style="padding:18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <b id="mTitle" style="font-size:1.1rem;">-</b>
+                <button onclick="closeModal()" style="border:none; background:none; font-size:28px; cursor:pointer; color:#888;">&times;</button>
             </div>
-            <div style="flex:1; padding:10px; position:relative;"><canvas id="canvas"></canvas></div>
+            
+            <div class="filter-bar">
+                <div class="date-inputs">
+                    <input type="date" id="startDate" style="flex:1;">
+                    <input type="date" id="endDate" style="flex:1;">
+                    <button onclick="loadFilteredData()" style="padding:0 20px; background:#333; color:white; border-radius:10px; border:none; cursor:pointer; font-weight:bold;">조회</button>
+                </div>
+                <div class="period-btns">
+                    <button onclick="setPeriod(7)">1주일</button>
+                    <button onclick="setPeriod(30)">1개월</button>
+                    <button onclick="setPeriod(90)">3개월</button>
+                    <button onclick="setPeriod(180)">6개월</button>
+                    <button onclick="setPeriod(365)">1년</button>
+                </div>
+            </div>
+            
+            <div style="flex:1; padding:20px; min-height: 300px;">
+                <canvas id="canvas"></canvas>
+            </div>
         </div>
     </div>
 
-    <button id="adminToggle" onclick="toggleAdmin()">🔒</button>
+    <button id="adminToggle" onclick="toggleAdmin()" title="관리자 모드">🔒</button>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, remove, get, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set, update, remove, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
+        // Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyAmNjMyLX75e5RMP8C8Wxzj_8Y-tsGmQ1I",
             authDomain: "temp-monitoring-8b172.firebaseapp.com",
             databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "temp-monitoring-8b172",
         };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const mapImages = { '8층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%208F.jpg', '9층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%209F.jpg' };
+        
+        // 도면 이미지 URL
+        const mapImages = { 
+            '8층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%208F.jpg', 
+            '9층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%209F.jpg' 
+        };
 
         let sensorData = {};
         let isAdmin = false;
         let myChart = null;
+        let currentDeviceId = null;
 
+        // 1. 데이터 실시간 감시 및 동기화
         onValue(ref(db, 'devices'), snap => {
             sensorData = snap.val() || {};
             renderList();
-            if(document.getElementById('map-container').style.display === 'block') renderMap();
+            if (document.getElementById('map-container').style.display === 'block') {
+                window.renderMap();
+            }
         });
 
+        // 2. 리스트 모드 화면 출력 함수
         function renderList() {
             const g8 = document.getElementById('grid-8f');
             const g9 = document.getElementById('grid-9f');
-            g8.innerHTML = g9.innerHTML = '';
+            if (!g8 || !g9) return;
+            
+            g8.innerHTML = '';
+            g9.innerHTML = '';
+
             Object.entries(sensorData).forEach(([id, info]) => {
                 const card = document.createElement('div');
-                card.className = `card ${info.floor==='9층'?'f9':'f8'}`;
+                card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
+                
+                // 카드 클릭 이벤트
                 card.onclick = () => {
-                    if(isAdmin) {
+                    if (isAdmin) {
+                        // 관리자 모드일 때는 폼에 정보 입력
                         document.getElementById('devId').value = id;
-                        document.getElementById('devName').value = info.name;
-                        document.getElementById('devFloor').value = info.floor;
-                        document.getElementById('devZone').value = info.zone;
-                    } else window.openModal(id, info.name);
+                        document.getElementById('devName').value = info.name || '';
+                        document.getElementById('devFloor').value = info.floor || '9층';
+                        document.getElementById('devZone').value = info.zone || '1구역';
+                    } else {
+                        // 일반 모드일 때는 그래프 팝업
+                        window.openModal(id, info.name);
+                    }
                 };
-                card.innerHTML = `<span class="zone-label">${info.zone}</span><div class="brand-label">${info.name}</div><div class="temp-main">${info.temperature || 0}°</div>`;
-                (info.floor === '9층' ? g9 : g8).appendChild(card);
+
+                const tempVal = info.temperature || 0;
+                card.innerHTML = `
+                    <span class="zone-label">${info.zone || '구역미정'}</span>
+                    <div class="brand-label">${info.name || '미등록'}</div>
+                    <div class="temp-main">${tempVal}°</div>
+                `;
+
+                if (info.floor === '9층') g9.appendChild(card);
+                else g8.appendChild(card);
             });
             document.getElementById('totalCount').innerText = `(${Object.keys(sensorData).length}/14)`;
         }
 
+        // 3. 지도 모드 렌더링 함수 (스크롤 방식)
         window.renderMap = () => {
-            const b9 = document.getElementById('map9-box'); const b8 = document.getElementById('map8-box');
-            b9.style.backgroundImage = `url('${mapImages['9층']}')`; b8.style.backgroundImage = `url('${mapImages['8층']}')`;
-            b9.innerHTML = ''; b8.innerHTML = '';
+            const box9 = document.getElementById('map9-box');
+            const box8 = document.getElementById('map8-box');
+            
+            box9.style.backgroundImage = `url('${mapImages['9층']}')`;
+            box8.style.backgroundImage = `url('${mapImages['8층']}')`;
+            box9.innerHTML = ''; 
+            box8.innerHTML = '';
+
             Object.entries(sensorData).forEach(([id, info]) => {
                 const temp = parseFloat(info.temperature || 0);
                 const dot = document.createElement('div');
                 dot.className = 'status-dot';
-                dot.style.left = ((info.mapX || 50) / 12.8) + '%'; dot.style.top = ((info.mapY || 50) / 7.2) + '%';
-                dot.style.backgroundColor = temp > 26 ? 'var(--danger)' : (temp < 23 ? 'var(--cold)' : 'var(--safe)');
-                dot.innerHTML = `<b>${info.temperature || 0}</b>`;
-                const parent = info.floor === '9층' ? b9 : b8;
-                dot.onmousedown = (e) => { if(isAdmin) startDrag(e, id, dot, parent); else window.openModal(id, info.name); };
-                dot.ontouchstart = (e) => { if(isAdmin) startDrag(e, id, dot, parent); else window.openModal(id, info.name); };
-                parent.appendChild(dot);
+                
+                // 좌표 계산 (퍼센트 단위로 반응형 대응)
+                dot.style.left = ((info.mapX || 50) / 12.8) + '%';
+                dot.style.top = ((info.mapY || 50) / 7.2) + '%';
+
+                // 온도에 따른 색상 시각화
+                if (temp > 26) dot.style.backgroundColor = 'var(--danger)';
+                else if (temp < 23) dot.style.backgroundColor = 'var(--cold)';
+                else dot.style.backgroundColor = 'var(--safe)';
+
+                dot.innerHTML = `<b>${temp}</b>`;
+
+                const targetBox = info.floor === '9층' ? box9 : box8;
+
+                // 클릭 및 드래그 이벤트 등록
+                dot.onmousedown = (e) => {
+                    if (isAdmin) startDrag(e, id, dot, targetBox);
+                    else window.openModal(id, info.name);
+                };
+                dot.ontouchstart = (e) => {
+                    if (isAdmin) startDrag(e, id, dot, targetBox);
+                    else window.openModal(id, info.name);
+                };
+
+                targetBox.appendChild(dot);
             });
         };
 
+        // 4. 지도 핀 드래그 앤 드롭 저장 로직
         function startDrag(e, id, el, parent) {
             const rect = parent.getBoundingClientRect();
+            el.classList.add('dragging');
+
             const move = (me) => {
                 me.preventDefault();
                 const cx = me.touches ? me.touches[0].clientX : me.clientX;
                 const cy = me.touches ? me.touches[0].clientY : me.clientY;
-                let px = (cx - rect.left) / rect.width * 100; let py = (cy - rect.top) / rect.height * 100;
-                px = Math.max(0, Math.min(px, 100)); py = Math.max(0, Math.min(py, 100));
-                el.style.left = px + '%'; el.style.top = py + '%';
+                
+                let px = (cx - rect.left) / rect.width * 100;
+                let py = (cy - rect.top) / rect.height * 100;
+
+                // 범위 제한
+                px = Math.max(0, Math.min(px, 100));
+                py = Math.max(0, Math.min(py, 100));
+
+                el.style.left = px + '%';
+                el.style.top = py + '%';
+
+                // 1280x720 좌표계로 변환하여 임시 저장
                 window.lastXY = { id, x: Math.round(px * 12.8), y: Math.round(py * 7.2) };
             };
+
             const stop = () => {
-                document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
-                document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
-                if (window.lastXY) update(ref(db, `devices/${window.lastXY.id}`), { mapX: window.lastXY.x, mapY: window.lastXY.y });
+                el.classList.remove('dragging');
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', stop);
+                document.removeEventListener('touchmove', move);
+                document.removeEventListener('touchend', stop);
+
+                if (window.lastXY) {
+                    update(ref(db, `devices/${window.lastXY.id}`), { 
+                        mapX: window.lastXY.x, 
+                        mapY: window.lastXY.y 
+                    });
+                    window.lastXY = null;
+                }
             };
-            document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
-            document.addEventListener('touchmove', move, { passive: false }); document.addEventListener('touchend', stop);
+
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', stop);
+            document.addEventListener('touchmove', move, { passive: false });
+            document.addEventListener('touchend', stop);
         }
 
-        window.changeView = (v) => {
-            document.getElementById('btn-list').className = v === 'list' ? 'active' : '';
-            document.getElementById('btn-map').className = v === 'map' ? 'active' : '';
-            document.getElementById('list-container').style.display = v === 'list' ? 'block' : 'none';
-            document.getElementById('map-container').style.display = v === 'map' ? 'block' : 'none';
-            if(v === 'map') window.renderMap();
+        // 5. 리스트/지도 뷰 전환 함수
+        window.changeView = (mode) => {
+            const listBtn = document.getElementById('btn-list');
+            const mapBtn = document.getElementById('btn-map');
+            const listCont = document.getElementById('list-container');
+            const mapCont = document.getElementById('map-container');
+
+            if (mode === 'list') {
+                listBtn.classList.add('active');
+                mapBtn.classList.remove('active');
+                listCont.style.display = 'block';
+                mapCont.style.display = 'none';
+            } else {
+                listBtn.classList.remove('active');
+                mapBtn.classList.add('active');
+                listCont.style.display = 'none';
+                mapCont.style.display = 'block';
+                window.renderMap();
+            }
         };
 
+        // 6. 관리자 모드 로그인 제어
         window.toggleAdmin = () => {
-            if(isAdmin) { isAdmin = false; document.getElementById('adminPanel').style.display='none'; }
-            else if(prompt("관리자 암호")==="6011") { isAdmin = true; document.getElementById('adminPanel').style.display='block'; }
+            if (isAdmin) {
+                isAdmin = false;
+                document.getElementById('adminPanel').style.display = 'none';
+                document.getElementById('adminToggle').style.opacity = '0.6';
+                document.getElementById('adminToggle').innerText = '🔒';
+            } else {
+                const pw = prompt("관리자 암호를 입력하세요.");
+                if (pw === "6011") {
+                    isAdmin = true;
+                    document.getElementById('adminPanel').style.display = 'block';
+                    document.getElementById('adminToggle').style.opacity = '1';
+                    document.getElementById('adminToggle').innerText = '🔓';
+                    alert("수정 모드가 활성화되었습니다. 리스트를 눌러 수정하거나 지도의 핀을 드래그하세요.");
+                } else {
+                    alert("암호가 틀렸습니다.");
+                }
+            }
             renderList();
+            if (document.getElementById('map-container').style.display === 'block') window.renderMap();
         };
 
-        window.openModal = async (id, name) => {
-            document.getElementById('mTitle').innerText = `${name} 실시간 그래프`;
+        // 7. 그래프 상세 보기 - 기간 필터 로직
+        window.openModal = (id, name) => {
+            currentDeviceId = id;
+            document.getElementById('mTitle').innerText = `${name} 온도 상세 통계`;
             document.getElementById('modal').style.display = 'flex';
-            const historyRef = query(ref(db, `history/${id}`), limitToLast(20));
-            const snap = await get(historyRef);
-            const labels = [], temps = [];
-            if(snap.exists()) {
-                Object.values(snap.val()).forEach(v => {
-                    labels.push(new Date(v.time));
-                    temps.push(v.temperature);
+            
+            // 기본 날짜 설정: 오늘로부터 7일 전
+            const today = new Date();
+            const lastWeek = new Date();
+            lastWeek.setDate(today.getDate() - 7);
+            
+            document.getElementById('startDate').value = lastWeek.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            
+            window.loadFilteredData();
+        };
+
+        window.setPeriod = (days) => {
+            const today = new Date();
+            const prevDate = new Date();
+            prevDate.setDate(today.getDate() - days);
+            
+            document.getElementById('startDate').value = prevDate.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            window.loadFilteredData();
+        };
+
+        window.loadFilteredData = async () => {
+            if (!currentDeviceId) return;
+            
+            const startStr = document.getElementById('startDate').value;
+            const endStr = document.getElementById('endDate').value;
+            
+            if (!startStr || !endStr) return;
+
+            const startTime = new Date(startStr + "T00:00:00").getTime();
+            const endTime = new Date(endStr + "T23:59:59").getTime();
+            
+            // Firebase에서 이력 데이터 조회
+            const snap = await get(ref(db, `history/${currentDeviceId}`));
+            const plotData = [];
+            
+            if (snap.exists()) {
+                Object.entries(snap.val()).forEach(([timestamp, value]) => {
+                    const ts = parseInt(timestamp);
+                    if (ts >= startTime && ts <= endTime) {
+                        plotData.push({ x: ts, y: value.temperature });
+                    }
                 });
             }
-            if(myChart) myChart.destroy();
-            myChart = new Chart(document.getElementById('canvas'), {
+            
+            // 시간순 정렬
+            plotData.sort((a, b) => a.x - b.x);
+
+            // 차트 생성 및 업데이트
+            const ctx = document.getElementById('canvas').getContext('2d');
+            if (myChart) myChart.destroy();
+            
+            myChart = new Chart(ctx, {
                 type: 'line',
-                data: { labels, datasets: [{ label: '온도(°C)', data: temps, borderColor: '#e74c3c', tension: 0.3, fill: true, backgroundColor: 'rgba(231, 76, 60, 0.1)' }] },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'minute' } } } }
+                data: {
+                    datasets: [{
+                        label: '실시간 온도 (°C)',
+                        data: plotData,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: plotData.length > 60 ? 0 : 3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { 
+                            type: 'time', 
+                            time: { unit: plotData.length > 150 ? 'day' : 'hour' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            title: { display: true, text: '온도 (°C)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' }
+                    }
+                }
             });
         };
 
-        window.closeModal = () => { document.getElementById('modal').style.display='none'; };
+        window.closeModal = () => {
+            document.getElementById('modal').style.display = 'none';
+            currentDeviceId = null;
+        };
+
+        // 8. 관리자 명령 (추가, 수정, 삭제)
         window.addDev = () => {
             const id = document.getElementById('devId').value;
-            if(!id) return alert("ID 입력!");
-            update(ref(db, `devices/${id}`), { name: document.getElementById('devName').value, floor: document.getElementById('devFloor').value, zone: document.getElementById('devZone').value }).then(() => alert("저장됨"));
+            const name = document.getElementById('devName').value;
+            const floor = document.getElementById('devFloor').value;
+            const zone = document.getElementById('devZone').value;
+
+            if (!id || !name) return alert("ID와 브랜드명을 입력해 주세요.");
+
+            update(ref(db, `devices/${id}`), {
+                name: name,
+                floor: floor,
+                zone: zone
+            }).then(() => {
+                alert("기기 정보가 저장되었습니다.");
+            }).catch(err => alert("저장 실패: " + err));
         };
+
         window.deleteDev = () => {
             const id = document.getElementById('devId').value;
-            if(id && confirm("삭제하시겠습니까?")) remove(ref(db, `devices/${id}`));
+            if (!id) return alert("삭제할 기기를 선택하세요.");
+            
+            if (confirm("정말로 이 기기를 삭제하시겠습니까? 관련 데이터가 모두 제거됩니다.")) {
+                remove(ref(db, `devices/${id}`))
+                .then(() => {
+                    alert("기기가 삭제되었습니다.");
+                    document.getElementById('devId').value = "";
+                    document.getElementById('devName').value = "";
+                });
+            }
         };
+
+        // 9. 엑셀 다운로드 (전체 히스토리 추출)
         window.downloadExcel = async () => {
             const snap = await get(ref(db, 'history'));
-            if(!snap.exists()) return alert("데이터 없음");
-            const data = [["ID", "이름", "층", "구역", "온도", "시간"]];
-            Object.entries(snap.val()).forEach(([id, logs]) => {
-                Object.values(logs).forEach(r => data.push([id, r.name, r.floor, r.zone, r.temperature, r.time]));
+            if (!snap.exists()) return alert("추출할 데이터가 없습니다.");
+            
+            const excelRows = [["기기ID", "이름", "층", "구역", "온도(°C)", "습도(%)", "기록시간"]];
+            
+            Object.entries(snap.val()).forEach(([devId, logs]) => {
+                Object.values(logs).forEach(log => {
+                    excelRows.push([
+                        devId,
+                        log.name || "-",
+                        log.floor || "-",
+                        log.zone || "-",
+                        log.temperature || 0,
+                        log.humidity || 0,
+                        log.time || "-"
+                    ]);
+                });
             });
-            const ws = XLSX.utils.aoa_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "TempLogs");
-            XLSX.writeFile(wb, "냉난방_관제_데이터.xlsx");
+
+            const worksheet = XLSX.utils.aoa_to_sheet(excelRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "무역센터점 온도데이터");
+            XLSX.writeFile(workbook, "무역센터점_온도관제_리포트.xlsx");
         };
     </script>
 </body>
+
 </html>
