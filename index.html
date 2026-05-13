@@ -5,63 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>쇼핑몰 통합 온도 관제 시스템</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <style>
     * { box-sizing: border-box; }
     body { background-color: #f4f7f6; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 15px; padding-bottom: 80px; }
-    h1 { text-align: center; color: #333; font-size: 1.5rem; margin-bottom: 20px; word-break: keep-all; }
+    h1 { text-align: center; color: #333; font-size: 1.5rem; margin-bottom: 20px; }
     
-    /* 관리자 플로팅 버튼 */
-    #adminToggleBtn { 
-      position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; 
-      border-radius: 50%; background: #fff; border: 2px solid #ddd; 
-      cursor: pointer; font-size: 1.2rem; opacity: 0.6; z-index: 1000; 
-      display: flex; align-items: center; justify-content: center; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s; 
-    }
-    #adminToggleBtn.active { background: #333; color: white; border-color: #333; opacity: 1; }
-    
-    /* 관리자 패널 */
-    #adminPanel { 
-      display: none; max-width: 1200px; margin: 0 auto 20px auto; 
-      background: white; padding: 20px; border-radius: 12px; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-    }
+    #adminToggleBtn { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #fff; border: 2px solid #ddd; cursor: pointer; z-index: 1000; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    #adminToggleBtn.active { background: #333; color: white; }
+    #adminPanel { display: none; max-width: 1200px; margin: 0 auto 20px auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
     .input-group { display: flex; flex-direction: column; gap: 5px; }
     input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; width: 100%; }
-    
     .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
     .btn-add { background: #2196F3; color: white; }
     .btn-download { background: #4CAF50; color: white; }
-    
     .divider { border-bottom: 1px solid #eee; margin: 20px 0; }
-    
-    /* 대시보드 카드 */
-    #dashboard { 
-      display: grid; 
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-      gap: 15px; max-width: 1200px; margin: 0 auto; 
-    }
-    .card { 
-      background: white; border-radius: 12px; padding: 20px; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 8px solid #2196F3; 
-      position: relative; 
-    }
-    .zone-tag { 
-      position: absolute; top: 15px; right: 15px; background: #f0f0f0; 
-      padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: #555; font-weight: bold; 
-    }
+
+    #dashboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 8px solid #2196F3; position: relative; cursor: pointer; transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); box-shadow: 0 8px 12px rgba(0,0,0,0.1); }
+    .zone-tag { position: absolute; top: 15px; right: 15px; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: #555; font-weight: bold; }
     .title { font-size: 1.1rem; font-weight: bold; color: #333; margin-bottom: 15px; padding-right: 60px; }
     .data-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .value { font-weight: bold; font-size: 1.5rem; }
     .temp { color: #e74c3c; } .humi { color: #3498db; }
+    .batt-low { color: #e74c3c; } .batt-ok { color: #2ecc71; }
     .time { font-size: 0.8rem; color: #aaa; text-align: right; margin-top: 15px; }
-    
-    /* 수정 버튼 */
-    .btn-edit { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.5; display: none; }
-    .btn-edit:hover { opacity: 1; }
 
-    @media (max-width: 480px) { #dashboard { grid-template-columns: 1fr; } }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; padding: 20px; }
+    .modal-content { background: white; width: 100%; max-width: 900px; padding: 25px; border-radius: 15px; position: relative; max-height: 95vh; overflow-y: auto; }
+    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; border: none; background: none; }
+    #chartWrapper { width: 100%; height: 450px; margin-top: 20px; }
+
+    @media (max-width: 480px) { #dashboard { grid-template-columns: 1fr; } #chartWrapper { height: 350px; } }
   </style>
 </head>
 <body>
@@ -87,6 +65,23 @@
 
   <div id="dashboard"></div>
 
+  <div id="chartModal" class="modal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeModal()">×</button>
+      <h2 id="modalTitle" style="margin-top:0;">장비 데이터 변화 그래프</h2>
+      <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
+        <span>조회 기간:</span>
+        <input type="date" id="chartStartDate" style="width: 140px;">
+        <span>~</span>
+        <input type="date" id="chartEndDate" style="width: 140px;">
+        <button onclick="updateChart()" class="btn btn-add" style="width: 80px;">조회</button>
+      </div>
+      <div id="chartWrapper">
+        <canvas id="historyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
     import { getDatabase, ref, onValue, update, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
@@ -104,11 +99,11 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const ADMIN_PW = "6011"; 
     let isAdmin = false;
-    let latestData = null; 
+    let latestData = null;
+    let currentChart = null;
+    let currentDeviceId = null;
 
-    // 구역 설정 (1~7구역)
     const ZONES = ["1구역", "2구역", "3구역", "4구역", "5구역", "6구역", "7구역"];
     const zoneSelect = document.getElementById('newZone');
     ZONES.forEach(z => { const opt = document.createElement('option'); opt.value = z; opt.innerText = z; zoneSelect.appendChild(opt); });
@@ -121,17 +116,14 @@
       Object.entries(latestData).forEach(([id, info]) => {
         const card = document.createElement('div');
         card.className = 'card';
-        const editDisplay = isAdmin ? 'inline-block' : 'none';
-        
+        card.onclick = () => openChartModal(id, info.name);
+        const battColorClass = (info.battery <= 20) ? 'batt-low' : 'batt-ok';
         card.innerHTML = `
           <span class="zone-tag">${info.zone || '미지정'}</span>
-          <div class="title">
-            ${info.name || '이름 미설정'} 
-            <button class="btn-edit" style="display: ${editDisplay};" onclick="unifiedEdit('${id}', '${info.name}', '${info.zone}')">✏️</button>
-          </div>
+          <div class="title">${info.name || '이름 미설정'}</div>
           <div class="data-row"><span>온도</span><span class="value temp">${info.temperature}°C</span></div>
           <div class="data-row"><span>습도</span><span class="value humi">${info.humidity}%</span></div>
-          <div class="data-row"><span>배터리</span><span class="value" style="color: ${info.battery <= 20 ? '#e74c3c' : '#27ae60'}; font-size: 1.1rem;">${info.battery || 0}%</span></div>
+          <div class="data-row" style="font-size: 0.9rem;"><span>🔋 배터리</span><span class="${battColorClass}">${info.battery || 0}%</span></div>
           <div class="time">🕒 ${info.lastUpdated}</div>
         `;
         dashboard.appendChild(card);
@@ -140,82 +132,100 @@
 
     onValue(ref(db, 'devices'), (snapshot) => { latestData = snapshot.val(); renderDashboard(); });
 
-    // 관리자 모드 토글
+    async function openChartModal(deviceId, deviceName) {
+      currentDeviceId = deviceId;
+      document.getElementById('modalTitle').innerText = `📊 ${deviceName} 시계열 분석`;
+      document.getElementById('chartModal').style.display = 'flex';
+      
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - 2);
+      document.getElementById('chartStartDate').value = start.toISOString().split('T')[0];
+      document.getElementById('chartEndDate').value = end.toISOString().split('T')[0];
+      
+      updateChart();
+    }
+
+    async function updateChart() {
+      const start = document.getElementById('chartStartDate').value;
+      const end = document.getElementById('chartEndDate').value;
+      const sMs = new Date(start + "T00:00:00").getTime();
+      const eMs = new Date(end + "T23:59:59").getTime();
+
+      const snapshot = await get(ref(db, `history/${currentDeviceId}`));
+      if (!snapshot.exists()) return alert("기록된 데이터가 없습니다.");
+
+      const chartData = [];
+      Object.entries(snapshot.val()).forEach(([ts, info]) => {
+        const timestamp = parseInt(ts);
+        if (timestamp >= sMs && timestamp <= eMs) {
+          chartData.push({ x: timestamp, yTemp: info.temperature, yHumi: info.humidity });
+        }
+      });
+
+      chartData.sort((a, b) => a.x - b.x);
+
+      if (currentChart) currentChart.destroy();
+
+      const ctx = document.getElementById('historyChart').getContext('2d');
+      currentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [
+            { label: '온도 (°C)', data: chartData.map(d => ({x: d.x, y: d.yTemp})), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.2, yAxisID: 'y' },
+            { label: '습도 (%)', data: chartData.map(d => ({x: d.x, y: d.yHumi})), borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', tension: 0.2, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: { 
+              type: 'time', 
+              time: { unit: 'hour', displayFormats: { hour: 'MM/dd HH:mm' } },
+              title: { display: true, text: '시간' }
+            },
+            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: '온도 (°C)' } },
+            y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '습도 (%)' } }
+          }
+        }
+      });
+    }
+
+    window.closeModal = () => { document.getElementById('chartModal').style.display = 'none'; };
+    window.updateChart = updateChart;
+
     document.getElementById('adminToggleBtn').addEventListener('click', function() {
-      if (isAdmin) {
-        isAdmin = false; this.innerText = '🔒'; this.classList.remove('active');
-        document.getElementById('adminPanel').style.display = 'none';
-      } else {
-        const pw = prompt("비밀번호를 입력하세요.");
-        if (pw === ADMIN_PW) {
-          isAdmin = true; this.innerText = '🔓'; this.classList.add('active');
-          document.getElementById('adminPanel').style.display = 'block';
-        } else if (pw !== null) alert("비밀번호 불일치");
-      }
-      renderDashboard();
+      if (isAdmin) { isAdmin = false; this.innerText = '🔒'; document.getElementById('adminPanel').style.display = 'none'; }
+      else { const pw = prompt("비밀번호 입력"); if (pw === "6011") { isAdmin = true; this.innerText = '🔓'; document.getElementById('adminPanel').style.display = 'block'; } }
     });
 
-    // 기기 등록
     document.getElementById('addBtn').addEventListener('click', () => {
       const id = document.getElementById('newDeviceId').value.trim();
       const name = document.getElementById('newName').value.trim();
       const zone = document.getElementById('newZone').value;
       if(!id || !name) return alert("필수 입력 누락");
-      set(ref(db, `devices/${id}`), { name, zone, temperature: 0, humidity: 0, lastUpdated: "대기중" })
-        .then(() => { alert("등록 완료"); document.getElementById('newDeviceId').value = ''; document.getElementById('newName').value = ''; });
+      set(ref(db, `devices/${id}`), { name, zone, temperature: 0, humidity: 0, battery: 0, lastUpdated: "대기중" })
+        .then(() => { alert("등록 완료"); });
     });
 
-    // 통합 수정 (기존/신규 기기 공통)
-    window.unifiedEdit = (id, oldName, oldZone) => {
-      const newName = prompt("수정할 이름을 입력하세요:", oldName);
-      if (newName === null) return;
-
-      const zonePrompt = `변경할 구역 번호를 입력하세요 (1~7):\n현재: ${oldZone}`;
-      const zoneNum = prompt(zonePrompt, oldZone.replace('구역', ''));
-      if (zoneNum === null) return;
-      
-      const newZone = zoneNum.includes('구역') ? zoneNum : zoneNum + "구역";
-      
-      if (ZONES.includes(newZone)) {
-        update(ref(db, `devices/${id}`), { name: newName, zone: newZone })
-          .then(() => alert("수정 완료"));
-      } else {
-        alert("1~7 사이의 숫자만 가능합니다.");
-      }
-    };
-
-    // 🚀 진짜 엑셀(.xlsx) 다운로드 기능
     document.getElementById('downloadBtn').addEventListener('click', async () => {
       const start = document.getElementById('startDate').value;
       const end = document.getElementById('endDate').value;
-      if(!start || !end) return alert("시작일과 종료일을 선택해주세요.");
-
       const snapshot = await get(ref(db, 'history'));
-      if(!snapshot.exists()) return alert("데이터가 없습니다.");
-      
-      // 엑셀 데이터 배열 생성 (첫 줄은 제목)
-      const excelData = [["구역", "기기 이름", "온도(°C)", "습도(%)", "배터리(%)", "기록 시간"]];
-      
+      const excelData = [["구역", "기기 이름", "온도", "습도", "배터리", "기록 시간"]];
       const sMs = new Date(start + "T00:00:00").getTime();
       const eMs = new Date(end + "T23:59:59").getTime();
-
       Object.values(snapshot.val()).forEach(recs => {
         Object.entries(recs).forEach(([ts, info]) => {
-          if(ts >= sMs && ts <= eMs) {
-            excelData.push([info.zone, info.name, info.temperature, info.humidity, info.battery + "%", info.time]);
-          }
+          if(ts >= sMs && ts <= eMs) excelData.push([info.zone, info.name, info.temperature, info.humidity, info.battery, info.time]);
         });
       });
-
-      if(excelData.length === 1) return alert("해당 기간에 수집된 데이터가 없습니다.");
-
-      // 엑셀 파일 생성 과정
       const worksheet = XLSX.utils.aoa_to_sheet(excelData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "온도기록");
-      
-      // 파일 다운로드 실행
-      XLSX.writeFile(workbook, `쇼핑몰_온도기록_${start}_${end}.xlsx`);
+      XLSX.writeFile(workbook, `쇼핑몰_온도기록_${start}.xlsx`);
     });
   </script>
 </body>
