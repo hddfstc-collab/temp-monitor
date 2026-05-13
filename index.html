@@ -332,7 +332,7 @@
             }
         });
 
-        // 2. 리스트 모드 화면 출력 함수
+        // 2. 리스트 렌더링 (습도, 배터리 정보 포함 버전)
         function renderList() {
             const g8 = document.getElementById('grid-8f');
             const g9 = document.getElementById('grid-9f');
@@ -345,25 +345,34 @@
                 const card = document.createElement('div');
                 card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
                 
-                // 카드 클릭 이벤트
                 card.onclick = () => {
                     if (isAdmin) {
-                        // 관리자 모드일 때는 폼에 정보 입력
                         document.getElementById('devId').value = id;
                         document.getElementById('devName').value = info.name || '';
                         document.getElementById('devFloor').value = info.floor || '9층';
                         document.getElementById('devZone').value = info.zone || '1구역';
                     } else {
-                        // 일반 모드일 때는 그래프 팝업
                         window.openModal(id, info.name);
                     }
                 };
 
                 const tempVal = info.temperature || 0;
+                const humiVal = info.humidity || 0;
+                const battVal = info.battery || 0;
+
+                // 배터리 20% 미만이면 빨간색으로 경고 표시
+                const battColor = battVal < 20 ? 'red' : '#666';
+
                 card.innerHTML = `
                     <span class="zone-label">${info.zone || '구역미정'}</span>
                     <div class="brand-label">${info.name || '미등록'}</div>
-                    <div class="temp-main">${tempVal}°</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                        <div class="temp-main">${tempVal}°</div>
+                        <div style="font-size: 11px; color: #666; text-align: right; line-height: 1.4; font-weight: 600;">
+                            <div>💧 ${humiVal}%</div>
+                            <div style="color: ${battColor}">🔋 ${battVal}%</div>
+                        </div>
+                    </div>
                 `;
 
                 if (info.floor === '9층') g9.appendChild(card);
