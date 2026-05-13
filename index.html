@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>쇼핑몰 통합 온도 관제 시스템</title>
+    <title>쇼핑몰 통합 온도 관제</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
@@ -12,60 +12,54 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { background-color: #f5f7fa; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 10px; }
         
-        header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .toggle-box { background: #eee; border-radius: 20px; padding: 4px; display: flex; }
-        .toggle-box button { border: none; padding: 6px 16px; border-radius: 16px; cursor: pointer; font-size: 12px; font-weight: bold; background: none; }
+        .toggle-box button { border: none; padding: 6px 12px; border-radius: 16px; cursor: pointer; font-size: 12px; font-weight: bold; background: none; }
         .toggle-box button.active { background: #333; color: white; }
 
-        /* 지도 모드 */
-        #map-container { display: none; position: relative; width: 100%; overflow-x: auto; background: #fff; border-radius: 12px; border: 1px solid #ddd; }
+        /* 📱 반응형 지도 모드 핵심 설정 */
+        #map-container { display: none; width: 100%; max-width: 1280px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; }
+        
         .map-wrapper { 
             position: relative; 
-            width: 1280px; height: 720px; 
-            background-size: contain; background-repeat: no-repeat; background-position: center;
+            width: 100%; 
+            padding-top: 56.25%; /* 1280:720 비율 유지 (720/1280 = 0.5625) */
+            background-size: cover; 
+            background-repeat: no-repeat; 
+            background-position: center;
         }
+        
+        /* 핀 위치는 퍼센트(%)로 관리하여 반응형 대응 */
         .status-dot { 
-            position: absolute; width: 32px; height: 32px; 
-            border: 3px solid white; border-radius: 50%; 
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            position: absolute; width: 30px; height: 30px; 
+            border: 2px solid white; border-radius: 50%; 
+            box-shadow: 0 0 8px rgba(0,0,0,0.3);
             cursor: pointer; transform: translate(-50%, -50%);
             display: flex; align-items: center; justify-content: center;
-            transition: all 0.3s ease;
+            z-index: 10;
         }
-        .status-dot b { font-size: 10px; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .status-dot b { font-size: 10px; color: white; }
+        .status-dot.dragging { opacity: 0.7; scale: 1.3; z-index: 100; }
 
         /* 리스트 모드 */
-        #list-container { display: block; }
-        .floor-section { margin-bottom: 25px; }
-        .floor-title { 
-            font-size: 1.25rem; font-weight: 900; margin-bottom: 12px; 
-            padding-left: 10px; border-left: 6px solid #333; 
-        }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        @media (min-width: 768px) { .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); } }
-        
-        .card { background: white; border-radius: 12px; padding: 15px; border-top: 5px solid #ccc; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        @media (min-width: 1024px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+        .card { background: white; border-radius: 12px; padding: 15px; border-top: 5px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .card.f8 { border-top-color: var(--8f); }
         .card.f9 { border-top-color: var(--9f); }
 
-        .zone-text { font-size: 11px; color: #888; font-weight: bold; margin-bottom: 2px; }
-        .brand-text { font-size: 15px; font-weight: bold; color: #222; margin-bottom: 8px; }
-        .data-box { display: flex; justify-content: space-between; align-items: flex-end; }
-        .temp-text { font-size: 2rem; font-weight: 900; color: var(--danger); line-height: 1; letter-spacing: -1px; }
-        .sub-text { font-size: 11px; color: #666; text-align: right; line-height: 1.4; font-weight: 600; }
-
         /* 관리자 및 모달 */
-        #adminPanel { display: none; background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #ddd; }
+        #adminPanel { display: none; background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #ddd; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: white; width: 95%; max-width: 800px; height: 85%; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-content { background: white; width: 95%; max-width: 800px; height: 80%; border-radius: 20px; display: flex; flex-direction: column; }
         #adminToggle { position: fixed; bottom: 20px; left: 20px; width: 44px; height: 44px; border-radius: 50%; background: #333; color: white; border: none; opacity: 0.5; z-index: 1000; }
-        input, select, button { width: 100%; height: 40px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ddd; padding: 0 12px; font-size: 14px; }
+        input, select, button { width: 100%; height: 40px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ddd; padding: 0 10px; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1 style="font-size: 1.1rem; margin:0;">통합 온도 관제</h1>
+        <h1 style="font-size: 1rem; margin:0;">통합 온도 관제 <small id="totalCount">(0/14)</small></h1>
         <div class="toggle-box">
             <button id="btn-list" class="active" onclick="changeView('list')">리스트</button>
             <button id="btn-map" onclick="changeView('map')">지도</button>
@@ -74,42 +68,31 @@
 
     <div id="adminPanel">
         <input type="text" id="devId" placeholder="기기 ID">
-        <input type="text" id="devName" placeholder="브랜드명">
+        <input type="text" id="devName" placeholder="브랜드명 (예: SK2-1)">
         <select id="devFloor"><option value="9층">9층</option><option value="8층">8층</option></select>
         <select id="devZone"><option value="1구역">1구역</option><option value="2구역">2구역</option><option value="3구역">3구역</option><option value="4구역">4구역</option></select>
-        <div style="display:flex; gap:5px;">
-            <input type="number" id="mX" placeholder="지도 X좌표" style="flex:1">
-            <input type="number" id="mY" placeholder="지도 Y좌표" style="flex:1">
-        </div>
-        <button onclick="addDev()" style="background:var(--8f); color:white; border:none;">기기 등록</button>
-        <button onclick="downloadExcel()" style="background:var(--safe); color:white; border:none;">전체 엑셀 추출</button>
+        <button onclick="addDev()" style="background:var(--8f); color:white; border:none;">등록</button>
     </div>
 
     <div id="list-container">
-        <div class="floor-section">
-            <div class="floor-title" style="color:var(--9f); border-color:var(--9f);">9F</div>
-            <div id="grid-9f" class="grid"></div>
-        </div>
-        <div class="floor-section" style="margin-top:20px;">
-            <div class="floor-title" style="color:var(--8f); border-color:var(--8f);">8F</div>
-            <div id="grid-8f" class="grid"></div>
-        </div>
+        <div id="grid-9f" class="grid" style="margin-bottom:20px;"></div>
+        <div id="grid-8f" class="grid"></div>
     </div>
 
     <div id="map-container">
-        <div style="padding: 10px; background: #fff; display: flex; gap: 8px; border-bottom: 1px solid #eee;">
-            <button onclick="switchFloorMap('9층')" id="m9-tab" style="background:var(--9f); color:white; flex:1; border:none; height:35px; border-radius:8px;">9층 도면</button>
-            <button onclick="switchFloorMap('8층')" id="m8-tab" style="background:#ccc; color:#666; flex:1; border:none; height:35px; border-radius:8px;">8층 도면</button>
+        <div style="display: flex; gap: 5px; padding: 10px; border-bottom: 1px solid #eee;">
+            <button onclick="switchFloorMap('9층')" id="m9-tab" style="background:var(--9f); color:white; flex:1; border:none; height:35px; border-radius:8px;">9층</button>
+            <button onclick="switchFloorMap('8층')" id="m8-tab" style="background:#ccc; color:#666; flex:1; border:none; height:35px; border-radius:8px;">8층</button>
         </div>
         <div class="map-wrapper" id="map-img-box"></div>
     </div>
 
     <div id="modal" class="modal">
         <div class="modal-content">
-            <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+            <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
                 <b id="mTitle">-</b><button onclick="closeModal()" style="border:none; background:none; font-size:24px;">&times;</button>
             </div>
-            <div id="chartWrapper" style="flex:1; padding:15px;"><canvas id="canvas"></canvas></div>
+            <div id="chartWrapper" style="flex:1; padding:10px;"><canvas id="canvas"></canvas></div>
         </div>
     </div>
 
@@ -117,7 +100,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set, get, update } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAmNjMyLX75e5RMP8C8Wxzj_8Y-tsGmQ1I",
@@ -136,6 +119,7 @@
         let currentView = 'list';
         let currentMapFloor = '9층';
         let sensorData = {};
+        let isAdmin = false;
 
         onValue(ref(db, 'devices'), snap => {
             sensorData = snap.val() || {};
@@ -147,25 +131,14 @@
             const g8 = document.getElementById('grid-8f');
             const g9 = document.getElementById('grid-9f');
             g8.innerHTML = g9.innerHTML = '';
-
             Object.entries(sensorData).forEach(([id, info]) => {
                 const card = document.createElement('div');
                 card.className = `card ${info.floor==='9층'?'f9':'f8'}`;
                 card.onclick = () => openModal(id, info.name);
-                card.innerHTML = `
-                    <div class="zone-text">${info.zone || '구역미지정'}</div>
-                    <div class="brand-text">${info.name || '브랜드명'}</div>
-                    <div class="data-box">
-                        <div class="temp-text">${info.temperature}°</div>
-                        <div class="sub-text">
-                            <div>💧 ${info.humidity}%</div>
-                            <div style="color:${info.battery < 20 ? 'red' : '#666'}">🔋 ${info.battery}%</div>
-                        </div>
-                    </div>
-                `;
-                if(info.floor === '9층') g9.appendChild(card);
-                else g8.appendChild(card);
+                card.innerHTML = `<div style="font-size:11px;color:#888;">${info.zone}</div><b>${info.name}</b><div style="font-size:1.8rem;color:var(--danger);font-weight:900;">${info.temperature}°</div>`;
+                if(info.floor === '9층') g9.appendChild(card); else g8.appendChild(card);
             });
+            document.getElementById('totalCount').innerText = `(${Object.keys(sensorData).length}/14)`;
         }
 
         window.renderMap = () => {
@@ -176,20 +149,58 @@
             Object.entries(sensorData).forEach(([id, info]) => {
                 if(info.floor !== currentMapFloor) return;
                 const temp = parseFloat(info.temperature);
-                let color = 'var(--safe)';
-                if (temp > 26) color = 'var(--danger)';
-                else if (temp < 23) color = 'var(--cold)';
+                let color = temp > 26 ? 'var(--danger)' : (temp < 23 ? 'var(--cold)' : 'var(--safe)');
 
                 const dot = document.createElement('div');
                 dot.className = 'status-dot';
-                dot.style.left = (info.mapX || 100) + 'px';
-                dot.style.top = (info.mapY || 100) + 'px';
+                // 📍 위치를 %로 표시하여 반응형 대응 (1280x720 기준 계산)
+                dot.style.left = ((info.mapX || 100) / 12.8) + '%';
+                dot.style.top = ((info.mapY || 100) / 7.2) + '%';
                 dot.style.backgroundColor = color;
-                dot.onclick = () => openModal(id, info.name);
                 dot.innerHTML = `<b>${info.temperature}</b>`;
+                
+                if (isAdmin) {
+                    dot.onmousedown = (e) => startDrag(e, id, dot);
+                    dot.ontouchstart = (e) => startDrag(e, id, dot);
+                } else {
+                    dot.onclick = () => openModal(id, info.name);
+                }
                 box.appendChild(dot);
             });
         };
+
+        function startDrag(e, id, el) {
+            e.preventDefault();
+            const box = document.getElementById('map-img-box');
+            const rect = box.getBoundingClientRect();
+            el.classList.add('dragging');
+
+            const move = (me) => {
+                const cx = me.touches ? me.touches[0].clientX : me.clientX;
+                const cy = me.touches ? me.touches[0].clientY : me.clientY;
+                let px = (cx - rect.left) / rect.width * 100;
+                let py = (cy - rect.top) / rect.height * 100;
+                px = Math.max(0, Math.min(px, 100));
+                py = Math.max(0, Math.min(py, 100));
+                el.style.left = px + '%';
+                el.style.top = py + '%';
+                window.lastXY = { id, x: Math.round(px * 12.8), y: Math.round(py * 7.2) };
+            };
+
+            const stop = () => {
+                el.classList.remove('dragging');
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', stop);
+                document.removeEventListener('touchmove', move);
+                document.removeEventListener('touchend', stop);
+                if (window.lastXY) update(ref(db, `devices/${window.lastXY.id}`), { mapX: window.lastXY.x, mapY: window.lastXY.y });
+            };
+
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', stop);
+            document.addEventListener('touchmove', move, { passive: false });
+            document.addEventListener('touchend', stop);
+        }
 
         window.changeView = (v) => {
             currentView = v;
@@ -208,44 +219,13 @@
         };
 
         window.toggleAdmin = () => {
-            const p = document.getElementById('adminPanel');
-            if(p.style.display === 'block') p.style.display = 'none';
-            else if(prompt("비밀번호") === "6011") p.style.display = 'block';
+            if(isAdmin) { isAdmin = false; document.getElementById('adminPanel').style.display='none'; }
+            else if(prompt("PW")==="6011") { isAdmin = true; document.getElementById('adminPanel').style.display='block'; }
+            renderMap();
         };
-
-        window.addDev = () => {
-            const id = document.getElementById('devId').value;
-            set(ref(db, `devices/${id}`), {
-                name: document.getElementById('devName').value,
-                floor: document.getElementById('devFloor').value,
-                zone: document.getElementById('devZone').value,
-                temperature: 0, humidity: 0, battery: 0, 
-                mapX: document.getElementById('mX').value || 100, 
-                mapY: document.getElementById('mY').value || 100
-            });
-            alert("기기가 등록되었습니다.");
-        };
-
-        let chart;
-        window.openModal = async (id, name) => {
-            document.getElementById('mTitle').innerText = name;
-            document.getElementById('modal').style.display = 'flex';
-            const snap = await get(ref(db, `history/${id}`));
-            if(!snap.exists()) return;
-            const pts = Object.entries(snap.val()).map(([ts, v]) => ({x: parseInt(ts), y: v.temperature})).sort((a,b)=>a.x-a.y);
-            if(chart) chart.destroy();
-            chart = new Chart(document.getElementById('canvas'), {
-                type:'line', data:{datasets:[{label:'온도', data:pts, borderColor:'red', tension:0.3, pointRadius:0}]},
-                options:{scales:{x:{type:'time'}}, maintainAspectRatio:false}
-            });
-        };
-        window.closeModal = () => document.getElementById('modal').style.display = 'none';
-        window.downloadExcel = async () => {
-            const snap = await get(ref(db, 'history'));
-            const data = [["층", "구역", "이름", "온도", "습도", "배터리", "시간"]];
-            Object.values(snap.val()).forEach(v => Object.values(v).forEach(r => data.push([r.floor, r.zone, r.name, r.temperature, r.humidity, r.battery, r.time])));
-            XLSX.writeFile(XLSX.utils.book_new().appendChild(XLSX.utils.aoa_to_sheet(data), "History"), "온도기록.xlsx");
-        };
+        
+        window.openModal = (id, name) => { document.getElementById('mTitle').innerText = name; document.getElementById('modal').style.display='flex'; };
+        window.closeModal = () => { document.getElementById('modal').style.display='none'; };
     </script>
 </body>
 </html>
