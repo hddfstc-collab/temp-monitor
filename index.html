@@ -3,177 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>쇼핑몰 통합 온도 관제</title>
+    <title>쇼핑몰 층별 온습도 관제</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
-        :root { --bg: #f8f9fa; --8f: #2196F3; --9f: #9c27b0; --danger: #e74c3c; --sub: #7f8c8d; }
+        :root { --8f-color: #1a73e8; --9f-color: #8e24aa; --bg: #f4f7f9; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { background-color: var(--bg); font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 10px; padding-bottom: 80px; }
+        body { background-color: var(--bg); font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 10px; padding-bottom: 50px; }
         
-        header { padding: 5px 10px 10px; border-bottom: 1px solid #ddd; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
-        header h1 { font-size: 1.1rem; color: #333; margin: 0; }
-        header span { font-size: 0.8rem; color: var(--sub); }
+        header { padding: 10px; text-align: center; background: white; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        header h1 { font-size: 1.1rem; margin: 0; color: #333; }
 
-        /* 14개 대응 고밀도 그리드 */
-        #dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-
-        /* 카드 디자인: 온도가 주인공 */
-        .card { 
-            background: white; border-radius: 10px; padding: 10px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative;
-            border-top: 4px solid #ccc; min-height: 95px;
+        /* 층별 섹션 스타일 */
+        .floor-section { margin-bottom: 25px; }
+        .floor-title { 
+            font-size: 1rem; font-weight: 900; padding: 5px 10px; margin-bottom: 10px;
+            border-left: 5px solid #333; display: flex; justify-content: space-between; align-items: center;
         }
-        .card.floor-8 { border-top-color: var(--8f); }
-        .card.floor-9 { border-top-color: var(--9f); }
-        
-        .zone-name { font-size: 10px; font-weight: bold; color: var(--sub); margin-bottom: 2px; }
-        .device-title { font-size: 13px; font-weight: 800; color: #2c3e50; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        /* 온도 대형 표시 / 습도+배터리 소형 표시 */
-        .main-data { display: flex; align-items: flex-end; justify-content: space-between; }
-        .temp-display { font-size: 1.8rem; font-weight: 900; color: var(--danger); line-height: 1; letter-spacing: -1px; }
-        .sub-data { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 10px; color: var(--sub); font-weight: 600; }
-        
-        .update-time { font-size: 9px; color: #bbb; margin-top: 8px; text-align: right; }
+        .floor-8-title { border-left-color: var(--8f-color); color: var(--8f-color); }
+        .floor-9-title { border-left-color: var(--9f-color); color: var(--9f-color); }
 
-        /* 관리자 & 모달 */
-        #adminPanel { display: none; background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #ddd; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; flex-direction: column; }
-        .modal-header { padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #eee; }
-        #chartWrapper { flex: 1; padding: 10px; }
+        /* 그리드 레이아웃 (모바일 2열 / PC 가변) */
+        .grid-container { 
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; 
+        }
+        @media (min-width: 768px) { .grid-container { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+
+        /* 카드 디자인: 층 > 구역 > 브랜드 계층 반영 */
+        .card { 
+            background: white; border-radius: 12px; padding: 12px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; cursor: pointer;
+        }
+        .zone-label { font-size: 10px; color: #888; font-weight: bold; margin-bottom: 2px; }
+        .brand-name { font-size: 14px; font-weight: 800; color: #222; margin-bottom: 10px; height: 1.2em; overflow: hidden; }
         
-        #adminToggleBtn { position: fixed; bottom: 20px; left: 20px; width: 40px; height: 40px; border-radius: 50%; background: #333; color: white; border: none; opacity: 0.5; z-index: 1000; }
-        input, select, button { width: 100%; height: 35px; margin-bottom: 5px; border-radius: 5px; border: 1px solid #ddd; padding: 5px; font-size: 14px; }
+        .data-wrap { display: flex; justify-content: space-between; align-items: flex-end; }
+        .temp-val { font-size: 1.8rem; font-weight: 900; color: #e74c3c; line-height: 1; letter-spacing: -1px; }
+        .sub-val { font-size: 11px; color: #666; text-align: right; line-height: 1.4; font-weight: 600; }
+
+        /* 모달 및 관리자 생략 방지 코드 */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center; }
+        .modal-content { background:white; width:95%; max-width:800px; height:80%; border-radius:15px; display:flex; flex-direction:column; overflow:hidden; }
+        #adminPanel { display:none; background:white; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid #ddd; }
+        #adminToggle { position:fixed; bottom:15px; left:15px; width:40px; height:40px; border-radius:50%; background:#333; color:white; border:none; z-index:1000; opacity:0.5; }
+        input, select, button { width:100%; height:38px; margin-bottom:5px; border-radius:6px; border:1px solid #ddd; padding:0 10px; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>쇼핑몰 온도 관제 🏢</h1>
-        <span id="countLabel">0/14 연결됨</span>
+        <h1>쇼핑몰 통합 온도 관제 모니터</h1>
     </header>
 
     <div id="adminPanel">
-        <input type="text" id="newDeviceId" placeholder="Tuya ID">
-        <input type="text" id="newName" placeholder="기기 이름 (예: SK2 입구)">
-        <select id="newZone">
-            <option value="8층 1구역">8층 1구역</option>
-            <option value="8층 2구역">8층 2구역</option>
-            <option value="8층 3구역">8층 3구역</option>
-            <option value="9층 1구역">9층 1구역</option>
-            <option value="9층 2구역">9층 2구역</option>
-            <option value="9층 3구역">9층 3구역</option>
-            <option value="9층 4구역">9층 4구역</option>
+        <input type="text" id="devId" placeholder="Tuya Device ID">
+        <input type="text" id="devName" placeholder="브랜드명 (예: SK2, 구찌)">
+        <select id="devFloor">
+            <option value="8층">8층</option>
+            <option value="9층">9층</option>
         </select>
-        <button onclick="addDevice()" style="background:var(--8f); color:white;">기기 등록</button>
-        <button onclick="downloadExcel()" style="background:#27ae60; color:white;">전체 엑셀 추출</button>
+        <select id="devZone">
+            <option value="1구역">1구역</option><option value="2구역">2구역</option>
+            <option value="3구역">3구역</option><option value="4구역">4구역</option>
+        </select>
+        <button onclick="addDevice()" style="background:var(--8f-color); color:white; border:none;">기기 추가</button>
+        <button onclick="downloadExcel()" style="background:#27ae60; color:white; border:none;">전체 데이터 엑셀추출</button>
     </div>
 
-    <div id="dashboard"></div>
-
-    <div id="chartModal" class="modal">
-        <div class="modal-header">
-            <button onclick="closeModal()" style="width:40px; border:none; background:none; font-size:20px;">←</button>
-            <b id="modalTitle">장비 통계</b>
-        </div>
-        <div style="padding:10px; display:flex; gap:5px;">
-            <input type="date" id="chartStart" style="flex:1">
-            <input type="date" id="chartEnd" style="flex:1">
-            <button onclick="updateChart()" style="width:60px; background:#333; color:white;">조회</button>
-        </div>
-        <div id="chartWrapper"><canvas id="historyChart"></canvas></div>
+    <div class="floor-section">
+        <div class="floor-title floor-9-title">9F <span>VIP & Luxury</span></div>
+        <div id="grid-9f" class="grid-container"></div>
     </div>
 
-    <button id="adminToggleBtn" onclick="toggleAdmin()">🔒</button>
+    <div class="floor-section">
+        <div class="floor-title floor-8-title">8F <span>Office & Lounge</span></div>
+        <div id="grid-8f" class="grid-container"></div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <b id="mTitle">상세데이터</b>
+                <button onclick="closeM()" style="border:none; background:none; font-size:20px;">&times;</button>
+            </div>
+            <div style="padding:10px; display:flex; gap:5px; background:#f8f9fa;">
+                <input type="date" id="sDate" style="flex:1">
+                <input type="date" id="eDate" style="flex:1">
+                <button onclick="loadChart()" style="width:60px; background:#333; color:white; border:none;">조회</button>
+            </div>
+            <div id="chartWrapper" style="flex:1; padding:10px;"><canvas id="canvas"></canvas></div>
+        </div>
+    </div>
+
+    <button id="adminToggle" onclick="toggleA()">🔒</button>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-        const firebaseConfig = {
+        const cfg = {
             apiKey: "AIzaSyAmNjMyLX75e5RMP8C8Wxzj_8Y-tsGmQ1I",
             authDomain: "temp-monitoring-8b172.firebaseapp.com",
             databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "temp-monitoring-8b172",
         };
-
-        const app = initializeApp(firebaseConfig);
+        const app = initializeApp(cfg);
         const db = getDatabase(app);
 
-        onValue(ref(db, 'devices'), (snapshot) => {
-            const data = snapshot.val();
-            const container = document.getElementById('dashboard');
-            document.getElementById('countLabel').innerText = data ? `${Object.keys(data).length}/14 연결됨` : '0/14 연결됨';
-            container.innerHTML = '';
-            if (!data) return;
+        onValue(ref(db, 'devices'), snap => {
+            const list = snap.val();
+            const grid8 = document.getElementById('grid-8f');
+            const grid9 = document.getElementById('grid-9f');
+            grid8.innerHTML = grid9.innerHTML = '';
+            if(!list) return;
 
-            Object.entries(data).forEach(([id, info]) => {
-                const is9F = info.zone && info.zone.includes('9층');
+            Object.entries(list).forEach(([id, info]) => {
                 const card = document.createElement('div');
-                card.className = `card ${is9F ? 'floor-9' : 'floor-8'}`;
-                card.onclick = () => openChartModal(id, info.name);
-                
+                card.className = 'card';
+                card.onclick = () => openM(id, info.name);
                 card.innerHTML = `
-                    <div class="zone-name">${info.zone}</div>
-                    <div class="device-title">${info.name}</div>
-                    <div class="main-data">
-                        <div class="temp-display">${info.temperature}°</div>
-                        <div class="sub-data">
-                            <span>💧 ${info.humidity}%</span>
-                            <span style="color:${info.battery < 20 ? 'red' : '#7f8c8d'}">🔋 ${info.battery}%</span>
+                    <div class="zone-label">${info.zone || '구역미정'}</div>
+                    <div class="brand-name">${info.name || '브랜드미정'}</div>
+                    <div class="data-wrap">
+                        <div class="temp-val">${info.temperature}°</div>
+                        <div class="sub-val">
+                            <div>💧 ${info.humidity}%</div>
+                            <div style="color:${info.battery < 20 ? 'red' : '#666'}">🔋 ${info.battery}%</div>
                         </div>
                     </div>
-                    <div class="update-time">${info.lastUpdated ? info.lastUpdated.split(' ')[2] : ''}</div>
                 `;
-                container.appendChild(card);
+                // 층에 맞는 그리드에 배치
+                if(info.floor === '9층') grid9.appendChild(card);
+                else grid8.appendChild(card);
             });
         });
 
-        window.toggleAdmin = () => {
-            const panel = document.getElementById('adminPanel');
-            if (panel.style.display === 'block') panel.style.display = 'none';
-            else if (prompt("PASS") === "6011") panel.style.display = 'block';
+        window.toggleA = () => {
+            const p = document.getElementById('adminPanel');
+            if(p.style.display === 'block') p.style.display = 'none';
+            else if(prompt("PASS") === "6011") p.style.display = 'block';
         };
 
+        window.addDevice = () => {
+            const id = document.getElementById('devId').value;
+            set(ref(db, `devices/${id}`), {
+                name: document.getElementById('devName').value,
+                floor: document.getElementById('devFloor').value,
+                zone: document.getElementById('devZone').value,
+                temperature: 0, humidity: 0, battery: 0, lastUpdated: '-'
+            });
+            alert("등록 완료");
+        };
+
+        // (엑셀 및 그래프 로직은 이전과 동일하게 유지)
+        let chart;
+        window.openM = (id, name) => {
+            window.curId = id; document.getElementById('mTitle').innerText = name;
+            document.getElementById('modal').style.display = 'flex';
+            const t = new Date().toISOString().split('T')[0];
+            document.getElementById('sDate').value = document.getElementById('eDate').value = t;
+            loadChart();
+        };
+        window.loadChart = async () => {
+            const s = new Date(document.getElementById('sDate').value + "T00:00").getTime();
+            const e = new Date(document.getElementById('eDate').value + "T23:59").getTime();
+            const snap = await get(ref(db, `history/${window.curId}`));
+            const pts = Object.entries(snap.val()).filter(([ts]) => ts >= s && ts <= e).map(([ts, v]) => ({x: parseInt(ts), yT: v.temperature, yH: v.humidity})).sort((a,b)=>a.x-b.x);
+            if(chart) chart.destroy();
+            chart = new Chart(document.getElementById('canvas'), {
+                type:'line', data:{datasets:[{label:'온도', data:pts.map(p=>({x:p.x,y:p.yT})), borderColor:'red', tension:0.3, pointRadius:0},{label:'습도', data:pts.map(p=>({x:p.x,y:p.yH})), borderColor:'blue', tension:0.3, pointRadius:0}]},
+                options:{scales:{x:{type:'time'}}, maintainAspectRatio:false}
+            });
+        };
+        window.closeM = () => document.getElementById('modal').style.display = 'none';
         window.downloadExcel = async () => {
             const snap = await get(ref(db, 'history'));
-            const rows = [["구역", "기기", "온도", "습도", "배터리", "시간"]];
-            Object.values(snap.val()).forEach(d => Object.values(d).forEach(r => rows.push([r.zone, r.name, r.temperature, r.humidity, r.battery, r.time])));
-            XLSX.writeFile(XLSX.utils.book_new().appendChild(XLSX.utils.aoa_to_sheet(rows), "History"), "온도관리.xlsx");
-        };
-
-        let chart;
-        window.openChartModal = async (id, name) => {
-            document.getElementById('modalTitle').innerText = name;
-            document.getElementById('chartModal').style.display = 'flex';
-            document.getElementById('chartStart').value = document.getElementById('chartEnd').value = new Date().toISOString().split('T')[0];
-            window.currentId = id;
-            updateChart();
-        };
-
-        window.updateChart = async () => {
-            const s = new Date(document.getElementById('chartStart').value + "T00:00").getTime();
-            const e = new Date(document.getElementById('chartEnd').value + "T23:59").getTime();
-            const snap = await get(ref(db, `history/${window.currentId}`));
-            const pts = Object.entries(snap.val()).filter(([ts]) => ts >= s && ts <= e).map(([ts, i]) => ({x: parseInt(ts), yT: i.temperature, yH: i.humidity})).sort((a,b)=>a.x-b.x);
-            if (chart) chart.destroy();
-            chart = new Chart(document.getElementById('historyChart'), {
-                type: 'line',
-                data: { datasets: [{label:'온도', data:pts.map(p=>({x:p.x,y:p.yT})), borderColor:'red', tension:0.3, pointRadius:0}, {label:'습도', data:pts.map(p=>({x:p.x,y:p.yH})), borderColor:'blue', tension:0.3, pointRadius:0}] },
-                options: { scales: { x: { type: 'time' } }, maintainAspectRatio: false }
-            });
-        };
-
-        window.closeModal = () => document.getElementById('chartModal').style.display = 'none';
-        window.addDevice = () => {
-            set(ref(db, `devices/${document.getElementById('newDeviceId').value}`), {
-                name: document.getElementById('newName').value,
-                zone: document.getElementById('newZone').value,
-                temperature: 0, humidity: 0, battery: 0, lastUpdated: '대기'
-            });
-            alert("완료");
+            const data = [["층", "구역", "이름", "온도", "습도", "배터리", "시간"]];
+            Object.values(snap.val()).forEach(v => Object.values(v).forEach(r => data.push([r.floor, r.zone, r.name, r.temperature, r.humidity, r.battery, r.time])));
+            XLSX.writeFile(XLSX.utils.book_new().appendChild(XLSX.utils.aoa_to_sheet(data), "History"), "온도기록.xlsx");
         };
     </script>
 </body>
