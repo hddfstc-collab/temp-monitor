@@ -3,143 +3,175 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>쇼핑몰 통합 온도 관제 시스템</title>
+  <title>스마트 온습도 관제</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <style>
-    * { box-sizing: border-box; }
-    body { background-color: #f4f7f6; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 15px; padding-bottom: 80px; }
-    h1 { text-align: center; color: #333; font-size: 1.5rem; margin-bottom: 20px; }
+    :root { --primary-color: #2196F3; --danger-color: #ff5252; --safe-color: #4caf50; --bg-color: #f0f2f5; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px; color: #333; }
     
-    #adminToggleBtn { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #fff; border: 2px solid #ddd; cursor: pointer; z-index: 1000; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    #adminToggleBtn.active { background: #333; color: white; }
-    #adminPanel { display: none; max-width: 1200px; margin: 0 auto 20px auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
-    .input-group { display: flex; flex-direction: column; gap: 5px; }
-    input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; width: 100%; }
-    .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
-    .btn-add { background: #2196F3; color: white; }
-    .btn-download { background: #4CAF50; color: white; }
-    .divider { border-bottom: 1px solid #eee; margin: 20px 0; }
+    header { padding: 15px 5px; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.25rem; margin: 0; font-weight: 800; color: #1a73e8; }
 
-    #dashboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; }
-    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 8px solid #2196F3; position: relative; cursor: pointer; transition: transform 0.2s; }
-    .card:hover { transform: translateY(-5px); box-shadow: 0 8px 12px rgba(0,0,0,0.1); }
-    .zone-tag { position: absolute; top: 15px; right: 15px; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: #555; font-weight: bold; }
-    .title { font-size: 1.1rem; font-weight: bold; color: #333; margin-bottom: 15px; padding-right: 60px; }
-    .data-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .value { font-weight: bold; font-size: 1.5rem; }
-    .temp { color: #e74c3c; } .humi { color: #3498db; }
-    .batt-low { color: #e74c3c; } .batt-ok { color: #2ecc71; }
-    .time { font-size: 0.8rem; color: #aaa; text-align: right; margin-top: 15px; }
+    /* 관리자 패널 - 모바일용 접이식 느낌 */
+    #adminPanel { display: none; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    .admin-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    input, select { height: 45px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; width: 100%; }
+    .btn { height: 45px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 15px; }
+    .btn-add { background: var(--primary-color); color: white; width: 100%; }
+    .btn-download { background: var(--safe-color); color: white; width: 100%; }
 
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; padding: 20px; }
-    .modal-content { background: white; width: 100%; max-width: 900px; padding: 25px; border-radius: 15px; position: relative; max-height: 95vh; overflow-y: auto; }
-    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; border: none; background: none; }
-    #chartWrapper { width: 100%; height: 450px; margin-top: 20px; }
+    /* 대시보드 카드 디자인 (모바일 최적화) */
+    #dashboard { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .card { background: white; border-radius: 18px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; border: 1px solid #eee; }
+    .card:active { background-color: #f9f9f9; } /* 터치 피드백 */
+    
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+    .zone-badge { background: #e8f0fe; color: #1967d2; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; }
+    .device-name { font-size: 1.1rem; font-weight: 700; color: #222; margin-top: 5px; }
+    
+    .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .data-box { background: #f8f9fa; padding: 12px; border-radius: 12px; text-align: center; }
+    .data-label { font-size: 12px; color: #777; margin-bottom: 4px; display: block; }
+    .data-value { font-size: 1.4rem; font-weight: 800; }
+    .temp { color: var(--danger-color); }
+    .humi { color: var(--primary-color); }
+    
+    .card-footer { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #999; }
+    .batt-text { font-weight: bold; }
 
-    @media (max-width: 480px) { #dashboard { grid-template-columns: 1fr; } #chartWrapper { height: 350px; } }
+    /* 모달 (전체 화면) */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; flex-direction: column; }
+    .modal-header { padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #eee; }
+    .back-btn { font-size: 1.5rem; background: none; border: none; padding: 0 15px 0 0; cursor: pointer; }
+    .modal-content { flex: 1; padding: 15px; overflow-y: auto; }
+    #chartWrapper { width: 100%; height: 300px; margin-top: 20px; }
+
+    #adminToggleBtn { position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 20px; z-index: 1000; }
   </style>
 </head>
 <body>
 
-  <h1>🌡️ 쇼핑몰 실시간 온도 관제 시스템</h1>
-  
-  <button id="adminToggleBtn">🔒</button>
+  <header>
+    <h1>🌡️ 쇼핑몰 관제</h1>
+    <div id="summary" style="font-size: 12px; color: #666;">연결 기기: <span id="deviceCount">0</span>대</div>
+  </header>
   
   <div id="adminPanel">
     <div class="admin-grid">
-      <div class="input-group"><label>온도계 ID</label><input type="text" id="newDeviceId" placeholder="Tuya ID"></div>
-      <div class="input-group"><label>기기 이름/브랜드</label><input type="text" id="newName" placeholder="예: 구찌 입구"></div>
-      <div class="input-group"><label>배치 구역</label><select id="newZone"></select></div>
-      <div class="input-group"><button id="addBtn" class="btn btn-add">➕ 기기 등록</button></div>
-    </div>
-    <div class="divider"></div>
-    <div class="admin-grid">
-      <div class="input-group"><label>조회 시작일</label><input type="date" id="startDate"></div>
-      <div class="input-group"><label>조회 종료일</label><input type="date" id="endDate"></div>
-      <div class="input-group" style="grid-column: span 2;"><button id="downloadBtn" class="btn btn-download">📊 엑셀 다운로드 (.xlsx)</button></div>
+      <input type="text" id="newDeviceId" placeholder="Tuya ID">
+      <input type="text" id="newName" placeholder="기기 이름 (예: 구찌 입구)">
+      <select id="newZone"></select>
+      <button id="addBtn" class="btn btn-add">기기 등록</button>
+      <div style="margin: 10px 0; border-top: 1px solid #eee;"></div>
+      <input type="date" id="startDate">
+      <input type="date" id="endDate">
+      <button id="downloadBtn" class="btn btn-download">엑셀 다운로드</button>
     </div>
   </div>
 
-  <div id="dashboard"></div>
+  <div id="dashboard">
+    <div style="text-align: center; padding: 50px; color: #999;">데이터를 불러오는 중...</div>
+  </div>
 
   <div id="chartModal" class="modal">
+    <div class="modal-header">
+      <button class="back-btn" onclick="closeModal()">←</button>
+      <div id="modalTitle" style="font-weight: bold; font-size: 1.1rem;">상세 분석</div>
+    </div>
     <div class="modal-content">
-      <button class="close-btn" onclick="closeModal()">×</button>
-      <h2 id="modalTitle" style="margin-top:0;">장비 데이터 변화 그래프</h2>
-      <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
-        <span>조회 기간:</span>
-        <input type="date" id="chartStartDate" style="width: 140px;">
-        <span>~</span>
-        <input type="date" id="chartEndDate" style="width: 140px;">
-        <button onclick="updateChart()" class="btn btn-add" style="width: 80px;">조회</button>
+      <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+        <input type="date" id="chartStartDate" style="flex:1; height: 40px; font-size: 14px;">
+        <input type="date" id="chartEndDate" style="flex:1; height: 40px; font-size: 14px;">
+        <button onclick="updateChart()" style="padding: 0 15px; border-radius: 10px; background: #333; color: white; border: none;">조회</button>
       </div>
       <div id="chartWrapper">
         <canvas id="historyChart"></canvas>
       </div>
+      <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 12px; font-size: 13px; color: #666; line-height: 1.6;">
+        💡 <b>팁:</b> 그래프의 선을 터치하면 해당 시점의 정확한 온습도를 확인할 수 있습니다. 두 손가락으로 확대도 가능합니다.
+      </div>
     </div>
   </div>
 
+  <button id="adminToggleBtn" onclick="toggleAdmin()">🔒</button>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getDatabase, ref, onValue, update, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+    import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAmNjMyLX75e5RMP8C8Wxzj_8Y-tsGmQ1I",
       authDomain: "temp-monitoring-8b172.firebaseapp.com",
       databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "temp-monitoring-8b172",
-      storageBucket: "temp-monitoring-8b172.firebasestorage.app",
-      messagingSenderId: "443305373876",
-      appId: "1:443305373876:web:7b40ab0dcccf8e49b2e7e1",
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
     let isAdmin = false;
-    let latestData = null;
     let currentChart = null;
     let currentDeviceId = null;
 
+    // 구역 설정
     const ZONES = ["1구역", "2구역", "3구역", "4구역", "5구역", "6구역", "7구역"];
     const zoneSelect = document.getElementById('newZone');
     ZONES.forEach(z => { const opt = document.createElement('option'); opt.value = z; opt.innerText = z; zoneSelect.appendChild(opt); });
 
-    function renderDashboard() {
-      const dashboard = document.getElementById('dashboard');
-      dashboard.innerHTML = '';
-      if (!latestData) return;
+    // 실시간 대시보드 업데이트
+    onValue(ref(db, 'devices'), (snapshot) => {
+      const data = snapshot.val();
+      const container = document.getElementById('dashboard');
+      const countLabel = document.getElementById('deviceCount');
+      if (!data) return;
 
-      Object.entries(latestData).forEach(([id, info]) => {
+      countLabel.innerText = Object.keys(data).length;
+      container.innerHTML = '';
+
+      Object.entries(data).forEach(([id, info]) => {
+        const battClass = info.battery <= 20 ? 'color:var(--danger-color)' : 'color:var(--safe-color)';
         const card = document.createElement('div');
         card.className = 'card';
         card.onclick = () => openChartModal(id, info.name);
-        const battColorClass = (info.battery <= 20) ? 'batt-low' : 'batt-ok';
         card.innerHTML = `
-          <span class="zone-tag">${info.zone || '미지정'}</span>
-          <div class="title">${info.name || '이름 미설정'}</div>
-          <div class="data-row"><span>온도</span><span class="value temp">${info.temperature}°C</span></div>
-          <div class="data-row"><span>습도</span><span class="value humi">${info.humidity}%</span></div>
-          <div class="data-row" style="font-size: 0.9rem;"><span>🔋 배터리</span><span class="${battColorClass}">${info.battery || 0}%</span></div>
-          <div class="time">🕒 ${info.lastUpdated}</div>
+          <div class="card-header">
+            <div>
+              <span class="zone-badge">${info.zone || '일반'}</span>
+              <div class="device-name">${info.name}</div>
+            </div>
+            <div style="font-size: 18px;">📊</div>
+          </div>
+          <div class="data-grid">
+            <div class="data-box">
+              <span class="data-label">온도</span>
+              <span class="data-value temp">${info.temperature}°C</span>
+            </div>
+            <div class="data-box">
+              <span class="data-label">습도</span>
+              <span class="data-value humi">${info.humidity}%</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <span>🕒 ${info.lastUpdated.split(' ').slice(1).join(' ')}</span>
+            <span class="batt-text" style="${battClass}">🔋 ${info.battery}%</span>
+          </div>
         `;
-        dashboard.appendChild(card);
+        container.appendChild(card);
       });
-    }
+    });
 
-    onValue(ref(db, 'devices'), (snapshot) => { latestData = snapshot.val(); renderDashboard(); });
-
+    // 그래프 모달 로직
     async function openChartModal(deviceId, deviceName) {
       currentDeviceId = deviceId;
-      document.getElementById('modalTitle').innerText = `📊 ${deviceName} 시계열 분석`;
+      document.getElementById('modalTitle').innerText = deviceName;
       document.getElementById('chartModal').style.display = 'flex';
       
       const end = new Date();
       const start = new Date();
-      start.setDate(end.getDate() - 2);
+      start.setDate(end.getDate() - 1); // 기본 하루치
       document.getElementById('chartStartDate').value = start.toISOString().split('T')[0];
       document.getElementById('chartEndDate').value = end.toISOString().split('T')[0];
       
@@ -153,7 +185,7 @@
       const eMs = new Date(end + "T23:59:59").getTime();
 
       const snapshot = await get(ref(db, `history/${currentDeviceId}`));
-      if (!snapshot.exists()) return alert("기록된 데이터가 없습니다.");
+      if (!snapshot.exists()) return;
 
       const chartData = [];
       Object.entries(snapshot.val()).forEach(([ts, info]) => {
@@ -162,71 +194,36 @@
           chartData.push({ x: timestamp, yTemp: info.temperature, yHumi: info.humidity });
         }
       });
-
       chartData.sort((a, b) => a.x - b.x);
 
       if (currentChart) currentChart.destroy();
-
       const ctx = document.getElementById('historyChart').getContext('2d');
       currentChart = new Chart(ctx, {
         type: 'line',
         data: {
           datasets: [
-            { label: '온도 (°C)', data: chartData.map(d => ({x: d.x, y: d.yTemp})), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.2, yAxisID: 'y' },
-            { label: '습도 (%)', data: chartData.map(d => ({x: d.x, y: d.yHumi})), borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', tension: 0.2, yAxisID: 'y1' }
+            { label: '온도', data: chartData.map(d => ({x: d.x, y: d.yTemp})), borderColor: '#ff5252', borderWidth: 2, pointRadius: 0, tension: 0.4 },
+            { label: '습도', data: chartData.map(d => ({x: d.x, y: d.yHumi})), borderColor: '#2196F3', borderWidth: 2, pointRadius: 0, tension: 0.4 }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
           scales: {
-            x: { 
-              type: 'time', 
-              time: { unit: 'hour', displayFormats: { hour: 'MM/dd HH:mm' } },
-              title: { display: true, text: '시간' }
-            },
-            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: '온도 (°C)' } },
-            y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '습도 (%)' } }
-          }
+            x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, grid: { display: false } },
+            y: { position: 'left', ticks: { size: 10 } }
+          },
+          plugins: { legend: { position: 'bottom' } }
         }
       });
     }
 
     window.closeModal = () => { document.getElementById('chartModal').style.display = 'none'; };
     window.updateChart = updateChart;
-
-    document.getElementById('adminToggleBtn').addEventListener('click', function() {
-      if (isAdmin) { isAdmin = false; this.innerText = '🔒'; document.getElementById('adminPanel').style.display = 'none'; }
-      else { const pw = prompt("비밀번호 입력"); if (pw === "6011") { isAdmin = true; this.innerText = '🔓'; document.getElementById('adminPanel').style.display = 'block'; } }
-    });
-
-    document.getElementById('addBtn').addEventListener('click', () => {
-      const id = document.getElementById('newDeviceId').value.trim();
-      const name = document.getElementById('newName').value.trim();
-      const zone = document.getElementById('newZone').value;
-      if(!id || !name) return alert("필수 입력 누락");
-      set(ref(db, `devices/${id}`), { name, zone, temperature: 0, humidity: 0, battery: 0, lastUpdated: "대기중" })
-        .then(() => { alert("등록 완료"); });
-    });
-
-    document.getElementById('downloadBtn').addEventListener('click', async () => {
-      const start = document.getElementById('startDate').value;
-      const end = document.getElementById('endDate').value;
-      const snapshot = await get(ref(db, 'history'));
-      const excelData = [["구역", "기기 이름", "온도", "습도", "배터리", "기록 시간"]];
-      const sMs = new Date(start + "T00:00:00").getTime();
-      const eMs = new Date(end + "T23:59:59").getTime();
-      Object.values(snapshot.val()).forEach(recs => {
-        Object.entries(recs).forEach(([ts, info]) => {
-          if(ts >= sMs && ts <= eMs) excelData.push([info.zone, info.name, info.temperature, info.humidity, info.battery, info.time]);
-        });
-      });
-      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "온도기록");
-      XLSX.writeFile(workbook, `쇼핑몰_온도기록_${start}.xlsx`);
-    });
+    window.toggleAdmin = () => {
+      if (isAdmin) { isAdmin = false; document.getElementById('adminPanel').style.display = 'none'; }
+      else { const pw = prompt("비번 입력"); if(pw === "6011") { isAdmin = true; document.getElementById('adminPanel').style.display = 'block'; } }
+    };
   </script>
 </body>
 </html>
