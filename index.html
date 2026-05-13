@@ -17,31 +17,20 @@
         .toggle-box button { border: none; padding: 6px 12px; border-radius: 16px; cursor: pointer; font-size: 12px; font-weight: bold; background: none; }
         .toggle-box button.active { background: #333; color: white; }
 
-        /* 층별 타이틀 스타일 복구 */
         .floor-section { margin-bottom: 30px; }
-        .floor-title { 
-            font-size: 1.3rem; font-weight: 900; margin-bottom: 15px; 
-            padding-left: 12px; border-left: 6px solid #333; 
-            display: flex; align-items: center; height: 24px;
-        }
+        .floor-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 15px; padding-left: 12px; border-left: 6px solid #333; display: flex; align-items: center; height: 24px; }
 
-        /* 지도 레이아웃 */
         #map-container { display: none; width: 100%; max-width: 1280px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; }
         .map-wrapper { position: relative; width: 100%; padding-top: 56.25%; background-size: cover; background-repeat: no-repeat; background-position: center; }
         
-        .status-dot { 
-            position: absolute; width: 32px; height: 32px; border: 2px solid white; border-radius: 50%; 
-            box-shadow: 0 0 8px rgba(0,0,0,0.3); cursor: pointer; transform: translate(-50%, -50%);
-            display: flex; align-items: center; justify-content: center; z-index: 10;
-        }
+        .status-dot { position: absolute; width: 32px; height: 32px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 8px rgba(0,0,0,0.3); cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; z-index: 10; }
         .status-dot b { font-size: 10px; color: white; pointer-events: none; }
         .status-dot.dragging { opacity: 0.7; scale: 1.4; z-index: 100; cursor: grabbing; border-color: yellow; }
 
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         @media (min-width: 1024px) { .grid { grid-template-columns: repeat(4, 1fr); } }
         
-        .card { background: white; border-radius: 14px; padding: 15px; border-top: 6px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.2s; }
-        .card:active { transform: scale(0.98); }
+        .card { background: white; border-radius: 14px; padding: 15px; border-top: 6px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         .card.f8 { border-top-color: var(--8f); }
         .card.f9 { border-top-color: var(--9f); }
 
@@ -70,11 +59,11 @@
 
     <div id="adminPanel">
         <h3 style="margin:0 0 10px 0; font-size:14px;">🛠️ 기기 관리 모드</h3>
-        <input type="text" id="devId" placeholder="기기 ID (수정 시 클릭)">
+        <input type="text" id="devId" placeholder="기기 ID">
         <input type="text" id="devName" placeholder="브랜드/위치명">
         <select id="devFloor"><option value="9층">9층</option><option value="8층">8층</option></select>
         <select id="devZone"><option value="1구역">1구역</option><option value="2구역">2구역</option><option value="3구역">3구역</option><option value="4구역">4구역</option></select>
-        <button onclick="addDev()" style="background:var(--8f); color:white; border:none; font-weight:bold;">기기 정보 저장/업데이트</button>
+        <button onclick="addDev()" style="background:var(--8f); color:white; border:none; font-weight:bold;">저장/업데이트</button>
     </div>
 
     <div id="list-container">
@@ -109,7 +98,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.app";
+        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAmNjMyLX75e5RMP8C8Wxzj_8Y-tsGmQ1I",
@@ -153,12 +142,12 @@
                         document.getElementById('devZone').value = info.zone || '1구역';
                         window.scrollTo(0,0);
                     } else {
-                        openModal(id, info.name);
+                        window.openModal(id, info.name);
                     }
                 };
                 card.innerHTML = `
-                    <span class="zone-label">${info.zone || '구역미정'}</span>
-                    <div class="brand-label">${info.name || '브랜드명'}</div>
+                    <span class="zone-label">${info.zone || ''}</span>
+                    <div class="brand-label">${info.name || ''}</div>
                     <div class="data-row">
                         <div class="temp-main">${info.temperature || 0}°</div>
                         <div class="sub-data">
@@ -181,16 +170,14 @@
                 if(info.floor !== currentMapFloor) return;
                 const temp = parseFloat(info.temperature || 0);
                 let color = temp > 26 ? 'var(--danger)' : (temp < 23 ? 'var(--cold)' : 'var(--safe)');
-
                 const dot = document.createElement('div');
                 dot.className = 'status-dot';
                 dot.style.left = ((info.mapX || 50) / 12.8) + '%';
                 dot.style.top = ((info.mapY || 50) / 7.2) + '%';
                 dot.style.backgroundColor = color;
                 dot.innerHTML = `<b>${info.temperature || 0}</b>`;
-                
-                dot.onmousedown = (e) => { if(isAdmin) startDrag(e, id, dot); else openModal(id, info.name); };
-                dot.ontouchstart = (e) => { if(isAdmin) startDrag(e, id, dot); else openModal(id, info.name); };
+                dot.onmousedown = (e) => { if(isAdmin) startDrag(e, id, dot); else window.openModal(id, info.name); };
+                dot.ontouchstart = (e) => { if(isAdmin) startDrag(e, id, dot); else window.openModal(id, info.name); };
                 box.appendChild(dot);
             });
         };
@@ -199,7 +186,6 @@
             const box = document.getElementById('map-img-box');
             const rect = box.getBoundingClientRect();
             el.classList.add('dragging');
-
             const move = (me) => {
                 me.preventDefault();
                 const cx = me.touches ? me.touches[0].clientX : me.clientX;
@@ -212,7 +198,6 @@
                 el.style.top = py + '%';
                 window.lastXY = { id, x: Math.round(px * 12.8), y: Math.round(py * 7.2) };
             };
-
             const stop = () => {
                 el.classList.remove('dragging');
                 document.removeEventListener('mousemove', move);
@@ -224,43 +209,43 @@
                     window.lastXY = null;
                 }
             };
-
             document.addEventListener('mousemove', move);
             document.addEventListener('mouseup', stop);
             document.addEventListener('touchmove', move, { passive: false });
             document.addEventListener('touchend', stop);
         }
 
+        // 함수들을 window 객체에 할당하여 HTML의 onclick에서 부를 수 있게 함
         window.changeView = (v) => {
             currentView = v;
             document.getElementById('btn-list').className = v === 'list' ? 'active' : '';
             document.getElementById('btn-map').className = v === 'map' ? 'active' : '';
             document.getElementById('list-container').style.display = v === 'list' ? 'block' : 'none';
             document.getElementById('map-container').style.display = v === 'map' ? 'block' : 'none';
-            if(v === 'map') renderMap();
+            if(v === 'map') window.renderMap();
         };
 
         window.switchFloorMap = (f) => {
             currentMapFloor = f;
             document.getElementById('m9-tab').style.cssText = f==='9층'?'background:var(--9f); color:white; flex:1; border:none; height:35px; border-radius:8px; font-weight:bold;':'background:#ccc; color:#666; flex:1; border:none; height:35px; border-radius:8px; font-weight:bold;';
             document.getElementById('m8-tab').style.cssText = f==='8층'?'background:var(--8f); color:white; flex:1; border:none; height:35px; border-radius:8px; font-weight:bold;':'background:#ccc; color:#666; flex:1; border:none; height:35px; border-radius:8px; font-weight:bold;';
-            renderMap();
+            window.renderMap();
         };
 
         window.toggleAdmin = () => {
             if(isAdmin) { isAdmin = false; document.getElementById('adminPanel').style.display='none'; }
-            else if(prompt("관리자 PW")==="6011") { isAdmin = true; document.getElementById('adminPanel').style.display='block'; }
-            renderList(); renderMap();
+            else if(prompt("PW")==="6011") { isAdmin = true; document.getElementById('adminPanel').style.display='block'; }
+            renderList(); window.renderMap();
         };
 
         window.addDev = () => {
             const id = document.getElementById('devId').value;
-            if(!id) return alert("기기 ID를 입력하세요.");
+            if(!id) return alert("ID 입력 필요");
             update(ref(db, `devices/${id}`), {
                 name: document.getElementById('devName').value,
                 floor: document.getElementById('devFloor').value,
                 zone: document.getElementById('devZone').value
-            }).then(() => alert("업데이트 완료"));
+            }).then(() => alert("저장됨"));
         };
         
         window.openModal = (id, name) => { document.getElementById('mTitle').innerText = name; document.getElementById('modal').style.display='flex'; };
