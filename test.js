@@ -23,21 +23,17 @@ if (!admin.apps.length) {
 }
 const db = admin.database();
 
-// 2. 투야 설정
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
   accessKey: 'rqyqdefgxpq8akws93xe',
   secretKey: 'ba86766479ee4a08a9426e7fe7e620b9',
 });
 
-// 3. 실행 함수
 async function collect() {
   const now = new Date();
   const timestamp = Date.now();
   const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
   const deviceId = "eb0b4a165182f9fd92d7yb"; 
-
-  console.log(`[${kstTime}] 데이터 수집 시작...`);
 
   try {
     const res = await context.request({
@@ -46,35 +42,44 @@ async function collect() {
     });
 
     if (res.success) {
-      let temp = 0;
+      let temp = 0, humi = 0, battery = 0;
+
       res.result.forEach(item => {
         if (item.code === 'va_temperature' || item.code === 'temp_current') {
-            temp = item.value > 100 ? item.value / 10 : item.value;
+          temp = item.value > 100 ? item.value / 10 : item.value;
+        }
+        if (item.code === 'va_humidity' || item.code === 'humidity_value') {
+          humi = item.value;
+        }
+        if (item.code === 'battery_percentage' || item.code === 'battery') {
+          battery = item.value;
         }
       });
 
-      // A. 실시간 기기 정보 업데이트 (전광판용)
+      // 기존 데이터 형식 그대로 history 누적
+      await db.ref(`history/${deviceId}/${timestamp}`).set({
+        battery: battery || 36, // 배터리 값이 안 오면 기존 36 유지
+        humidity: humi,
+        name: "SK2",
+        temperature: temp,
+        time: kstTime,
+        zone: "1구역"
+      });
+
+      // 실시간 기기 정보 업데이트
       await db.ref(`devices/${deviceId}`).update({
         temperature: temp,
+        humidity: humi,
+        battery: battery || 36,
         lastUpdated: kstTime
       });
       
-      // B. 히스토리 데이터 추가 (그래프용 - 누적되는 부분!)
-      await db.ref(`history/${deviceId}/${timestamp}`).set({
-        temperature: temp,
-        time: kstTime
-      });
-      
       await db.ref('debug').update({ last_success: kstTime, status: "OK", temp: temp });
-      console.log(`✅ 업데이트 완료! 현재 온도: ${temp}°C`);
-      
       process.exit(0);
     } else {
-      await db.ref('debug').update({ error: res.msg, at: kstTime, status: "Tuya Error" });
       process.exit(1);
     }
   } catch (e) {
-    await db.ref('debug').update({ error: e.message, at: kstTime, status: "System Error" });
     process.exit(1);
   }
 }
