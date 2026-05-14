@@ -11,7 +11,7 @@ from firebase_admin import credentials, db
 ACCESS_ID = "rqyqdefgxpq8akws93xe" 
 ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9" 
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
-ENDPOINT = "https://openapi.tuyaus.com" 
+ENDPOINT = "https://openapi.tuyain.com"
 
 # 파이어베이스 초기화 (인증 키 없이 URL로만 접속 시도)
 if not firebase_admin._apps:
