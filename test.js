@@ -1,7 +1,7 @@
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const admin = require('firebase-admin');
 
-// 1. 파이어베이스 설정 (보내주신 JSON 내용 완벽 반영)
+// 1. 파이어베이스 설정 (대리님이 주신 키 적용 완료)
 const serviceAccount = {
   "type": "service_account",
   "project_id": "temp-monitoring-8b172",
@@ -23,13 +23,14 @@ if (!admin.apps.length) {
 }
 const db = admin.database();
 
-// 2. 투야 설정 (대리님 사진 확인값 반영)
+// 2. 투야 설정
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
   accessKey: 'rqyqdefgxpq8akws93xe',
   secretKey: 'ba86766479ee4a08a9426e7fe7e620b9',
 });
 
+// 3. 실행 함수
 async function collect() {
   const now = new Date();
   const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
@@ -59,13 +60,18 @@ async function collect() {
       
       await db.ref('debug').update({ last_success: kstTime, status: "OK", temp: temp });
       console.log(`✅ 업데이트 성공! 현재 온도: ${temp}°C`);
+      
+      // 작업 완료 후 프로세스 강제 종료 (깃허브 액션 무한 대기 방지)
+      process.exit(0);
     } else {
       await db.ref('debug').update({ error: res.msg, at: kstTime, status: "Tuya Error" });
       console.log(`❌ 투야 에러: ${res.msg}`);
+      process.exit(1);
     }
   } catch (e) {
     console.error("시스템 에러:", e.message);
     await db.ref('debug').update({ error: e.message, at: kstTime, status: "System Error" });
+    process.exit(1);
   }
 }
 
