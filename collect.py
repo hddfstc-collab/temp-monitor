@@ -1,5 +1,6 @@
 import requests
 import time
+import datetime
 import hmac
 import hashlib
 import json
@@ -12,7 +13,7 @@ ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9"
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
 ENDPOINT = "https://openapi.tuyaus.com" 
 
-# 파이어베이스 초기화 (에러 완벽 수정)
+# 파이어베이스 초기화
 if not firebase_admin._apps:
     firebase_admin.initialize_app(options={'databaseURL': FIREBASE_URL})
 
@@ -78,17 +79,19 @@ def collect():
                 humi = val / 10 if val > 100 else val
         
         if temp is not None:
-            # 1. 실시간 데이터 갱신
-            now_str = time.strftime('%Y. %m. %d. %p %I:%M:%S')
+            # 1. 텍스트 시간 갱신: 깃허브 서버(UTC) 기준 +9시간 더해서 KST 문자열 생성
+            kst_time = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+            now_str = kst_time.strftime('%Y. %m. %d. %p %I:%M:%S')
+            
             ref.child(dev_id).update({
                 'temperature': temp, 
                 'humidity': humi, 
                 'lastUpdated': now_str
             })
-            # 2. 히스토리 기록 (한국 시간 KST 반영)
-            # 서버 시간(UTC)에 9시간을 더해 한국 타임스탬프 생성
-            ts_kst = int(time.time() * 1000) + (9 * 60 * 60 * 1000)
-            db.reference(f'history/{dev_id}/{ts_kst}').set({
+            
+            # 2. 그래프용 히스토리 기록: 절대시간이므로 보정 없이 순수 타임스탬프 적용
+            ts = int(time.time() * 1000)
+            db.reference(f'history/{dev_id}/{ts}').set({
                 'temperature': temp, 
                 'humidity': humi
             })
