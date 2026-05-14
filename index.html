@@ -1,164 +1,290 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
+
 <head>
     <meta charset="UTF-8">
-    <title>무역센터 온도 관제 시스템</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>무역센터점 통합 온도 관제</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; }
-        h1 { text-align: center; color: #1a73e8; margin-bottom: 30px; }
-        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); cursor: pointer; transition: 0.3s; text-align: center; }
-        .card:hover { transform: translateY(-10px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
-        .temp { font-size: 36px; font-weight: bold; color: #d93025; margin: 10px 0; }
-        .humi { font-size: 20px; color: #1976d2; }
-        .updated { font-size: 12px; color: #70757a; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
+        :root { --8f: #1a73e8; --9f: #8e24aa; --danger: #e74c3c; --safe: #27ae60; --cold: #3498db; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #f5f7fa; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 10px; }
+
+        header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+        h1 { font-size: 1.1rem; margin: 0; color: #333; }
         
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
-        .modal-content { background: white; margin: 50px auto; padding: 30px; border-radius: 20px; width: 90%; max-width: 1000px; position: relative; }
-        .close { position: absolute; right: 25px; top: 15px; font-size: 30px; cursor: pointer; }
-        .controls { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 10px; }
-        input[type="date"] { padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-search { background: #1a73e8; color: white; }
-        .btn-excel { background: #1e7e34; color: white; }
+        .toggle-box { background: #eee; border-radius: 20px; padding: 4px; display: flex; gap: 5px; }
+        .toggle-box button { border: none; padding: 8px; width: 48px; height: 40px; border-radius: 15px; cursor: pointer; background: none; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+        .toggle-box button.active { background: #333; color: white; }
+
+        .floor-section { margin-bottom: 30px; }
+        .floor-title { font-size: 1.4rem; font-weight: 900; margin-bottom: 15px; padding-left: 12px; border-left: 6px solid #333; height: 28px; display: flex; align-items: center; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        @media (min-width: 1024px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+        
+        .card { background: white; border-radius: 14px; padding: 18px; border-top: 6px solid #ccc; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); cursor: pointer; transition: 0.2s; }
+        .card:hover { transform: translateY(-3px); }
+        .card.f8 { border-top-color: var(--8f); }
+        .card.f9 { border-top-color: var(--9f); }
+        .zone-label { font-size: 11px; color: #888; font-weight: bold; margin-bottom: 4px; display: block; }
+        .brand-label { font-size: 16px; font-weight: 800; color: #222; margin-bottom: 10px; }
+        .temp-main { font-size: 2.2rem; font-weight: 900; color: var(--danger); letter-spacing: -1px; }
+
+        #map-container { display: none; width: 100%; max-width: 1280px; margin: 0 auto; height: calc(100vh - 100px); overflow-y: auto; border-radius: 15px; border: 1px solid #ddd; background: #f0f0f0; }
+        .map-section { background: white; margin-bottom: 25px; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .map-title { padding: 12px; font-weight: 900; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 20; }
+        .map-wrapper { position: relative; width: 100%; padding-top: 56.25%; background-size: cover; background-repeat: no-repeat; background-position: center; }
+        
+        .status-dot { position: absolute; width: 34px; height: 34px; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .status-dot b { font-size: 11px; color: white; pointer-events: none; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .status-dot.dragging { opacity: 0.8; scale: 1.5; z-index: 100; cursor: grabbing; border-color: #ffeb3b; }
+
+        #adminPanel { display: none; background: #fff; padding: 20px; border-radius: 15px; margin-bottom: 15px; border: 2px solid #333; }
+        .admin-btns { display: flex; gap: 8px; margin-top: 10px; }
+        .btn-add { background: var(--8f); color: white; flex: 2; border: none; font-weight: bold; border-radius: 10px; height: 45px; cursor: pointer; }
+        .btn-del { background: #333; color: white; flex: 1; border: none; font-weight: bold; border-radius: 10px; height: 45px; cursor: pointer; }
+        .btn-excel { background: #27ae60; color: white; margin-top: 10px; border: none; width: 100%; font-weight: bold; border-radius: 10px; height: 45px; cursor: pointer; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 95%; max-width: 850px; height: 85%; border-radius: 25px; display: flex; flex-direction: column; overflow: hidden; }
+        .filter-bar { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; }
+        .date-inputs { display: flex; gap: 8px; margin-bottom: 12px; }
+        .period-btns { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 5px; }
+        .period-btns button { flex: 1; min-width: 55px; height: 32px; font-size: 12px; background: #fff; border: 1px solid #ddd; border-radius: 8px; }
+
+        #adminToggle { position: fixed; bottom: 25px; left: 25px; width: 50px; height: 50px; border-radius: 50%; background: #333; color: white; border: none; opacity: 0.6; z-index: 1000; font-size: 20px; }
+        input, select { height: 42px; border-radius: 10px; border: 1px solid #ccc; padding: 0 12px; }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>무역센터점 온도 관제 실시간 현황</h1>
-        <div id="cardGrid" class="card-grid"></div>
+    <header>
+        <h1>무역센터점 통합 온도 관제 <small id="totalCount" style="color:#888; font-weight:normal;">(0/14)</small></h1>
+        <div class="toggle-box">
+            <button id="btn-list" class="active" onclick="changeView('list')">☰</button>
+            <button id="btn-map" onclick="changeView('map')">🗺️</button>
+        </div>
+    </header>
+
+    <div id="adminPanel">
+        <input type="text" id="devId" placeholder="기기 ID" style="width:100%; margin-bottom:8px;">
+        <input type="text" id="devName" placeholder="브랜드명" style="width:100%; margin-bottom:8px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <select id="devFloor" style="flex:1;"><option value="9층">9층</option><option value="8층">8층</option></select>
+            <select id="devZone" style="flex:1;"><option value="1구역">1구역</option><option value="2구역">2구역</option><option value="3구역">3구역</option><option value="4구역">4구역</option></select>
+        </div>
+        <div class="admin-btns">
+            <button class="btn-add" onclick="addDev()">저장/수정</button>
+            <button class="btn-del" onclick="deleteDev()">삭제</button>
+        </div>
+        <button class="btn-excel" onclick="downloadExcel()">📊 전체 엑셀 추출</button>
+    </div>
+
+    <div id="list-container">
+        <div class="floor-section">
+            <div class="floor-title" style="color:var(--9f); border-color:var(--9f);">9F</div>
+            <div id="grid-9f" class="grid"></div>
+        </div>
+        <div class="floor-section">
+            <div class="floor-title" style="color:var(--8f); border-color:var(--8f);">8F</div>
+            <div id="grid-8f" class="grid"></div>
+        </div>
+    </div>
+
+    <div id="map-container">
+        <div class="map-section"><div class="map-title" style="color:var(--9f);">9F 관제</div><div class="map-wrapper" id="map9-box"></div></div>
+        <div class="map-section"><div class="map-title" style="color:var(--8f);">8F 관제</div><div class="map-wrapper" id="map8-box"></div></div>
     </div>
 
     <div id="modal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 id="modalTitle">데이터 상세 분석</h2>
-            <div class="controls">
-                <input type="date" id="startDate"> <span>~</span> <input type="date" id="endDate">
-                <button class="btn-search" onclick="loadFilteredData()">조회</button>
-                <button class="btn-excel" onclick="downloadExcel()">엑셀 다운로드</button>
+            <div style="padding:18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <b id="mTitle">-</b><button onclick="closeModal()" style="border:none; background:none; font-size:28px;">&times;</button>
             </div>
-            <div style="height: 400px;"><canvas id="tempChart"></canvas></div>
+            <div class="filter-bar">
+                <div class="date-inputs">
+                    <input type="date" id="startDate" style="flex:1;"><input type="date" id="endDate" style="flex:1;">
+                    <button onclick="loadFilteredData()" style="padding:0 20px; background:#333; color:white; border-radius:10px; border:none; font-weight:bold;">조회</button>
+                </div>
+                <div class="period-btns">
+                    <button onclick="setPeriod(0)">오늘</button>
+                    <button onclick="setPeriod(7)">1주일</button>
+                    <button onclick="setPeriod(30)">1개월</button>
+                    <button onclick="setPeriod(90)">3개월</button>
+                    <button onclick="setPeriod(365)">1년</button>
+                </div>
+            </div>
+            <div style="flex:1; padding:20px;"><canvas id="canvas"></canvas></div>
         </div>
     </div>
 
-    <script>
-        // 최상위 주소로 설정 완료
+    <button id="adminToggle" onclick="toggleAdmin()">🔒</button>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, remove, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+
         const firebaseConfig = {
-            databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
+            apiKey: "AIzaSyAmNjMyLX75e5RMP8C8Wxzj_8Y-tsGmQ1I",
+            authDomain: "temp-monitoring-8b172.firebaseapp.com",
+            databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "temp-monitoring-8b172",
         };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
 
-        let currentDeviceId = '';
-        let myChart = null;
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const mapImages = { '8층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%208F.jpg', '9층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%209F.jpg' };
 
-        // 실시간 카드 업데이트
-        database.ref('devices').on('value', (snapshot) => {
-            const devices = snapshot.val();
-            const grid = document.getElementById('cardGrid');
-            grid.innerHTML = '';
-            
-            for (let id in devices) {
-                const dev = devices[id];
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.onclick = () => openModal(id, dev.name || id);
-                card.innerHTML = `
-                    <h3>${dev.name || id}</h3>
-                    <div class="temp">${dev.temperature || '--'}°C</div>
-                    <div class="humi">💧 습도: ${dev.humidity || '--'}%</div>
-                    <div class="updated">🕒 업데이트: ${dev.lastUpdated || '연결 대기'}</div>
-                `;
-                grid.appendChild(card);
-            }
+        let sensorData = {}, isAdmin = false, myChart = null, currentDeviceId = null;
+
+        onValue(ref(db, 'devices'), snap => {
+            sensorData = snap.val() || {};
+            renderList();
+            if (document.getElementById('map-container').style.display === 'block') window.renderMap();
         });
 
-        function openModal(deviceId, deviceName) {
-            currentDeviceId = deviceId;
-            document.getElementById('modalTitle').innerText = `[${deviceName}] 온도 히스토리`;
-            document.getElementById('modal').style.display = 'block';
-
-            // 오늘 날짜 자동 세팅
-            const now = new Date();
-            const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
-            document.getElementById('startDate').value = kstDate;
-            document.getElementById('endDate').value = kstDate;
-
-            loadFilteredData();
+        function renderList() {
+            const g8 = document.getElementById('grid-8f'), g9 = document.getElementById('grid-9f');
+            g8.innerHTML = ''; g9.innerHTML = '';
+            Object.entries(sensorData).forEach(([id, info]) => {
+                const card = document.createElement('div');
+                card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
+                card.onclick = () => isAdmin ? (document.getElementById('devId').value = id, document.getElementById('devName').value = info.name) : window.openModal(id, info.name);
+                
+                const battColor = (info.battery || 0) < 20 ? 'red' : '#666';
+                card.innerHTML = `
+                    <span class="zone-label">${info.zone}</span><div class="brand-label">${info.name}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                        <div class="temp-main">${info.temperature || 0}°</div>
+                        <div style="font-size:11px; color:#666; font-weight:600; text-align:right;">
+                            <div>💧 ${info.humidity || 0}%</div><div style="color:${battColor}">🔋 ${info.battery || 0}%</div>
+                        </div>
+                    </div>`;
+                (info.floor === '9층' ? g9 : g8).appendChild(card);
+            });
+            document.getElementById('totalCount').innerText = `(${Object.keys(sensorData).length}/14)`;
         }
 
-        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+        window.renderMap = () => {
+            const b9 = document.getElementById('map9-box'), b8 = document.getElementById('map8-box');
+            b9.style.backgroundImage = b8.style.backgroundImage = ''; 
+            b9.style.backgroundImage = `url('${mapImages['9층']}')`; b8.style.backgroundImage = `url('${mapImages['8층']}')`;
+            b9.innerHTML = b8.innerHTML = '';
+            Object.entries(sensorData).forEach(([id, info]) => {
+                const dot = document.createElement('div');
+                dot.className = 'status-dot';
+                dot.style.left = ((info.mapX || 50) / 12.8) + '%'; dot.style.top = ((info.mapY || 50) / 7.2) + '%';
+                const t = parseFloat(info.temperature || 0);
+                dot.style.backgroundColor = t > 26 ? 'var(--danger)' : (t < 23 ? 'var(--cold)' : 'var(--safe)');
+                dot.innerHTML = `<b>${t}</b>`;
+                const box = info.floor === '9층' ? b9 : b8;
+                dot.onmousedown = (e) => isAdmin ? startDrag(e, id, dot, box) : window.openModal(id, info.name);
+                dot.ontouchstart = (e) => isAdmin ? startDrag(e, id, dot, box) : window.openModal(id, info.name);
+                box.appendChild(dot);
+            });
+        };
 
-        function loadFilteredData() {
-            const startStr = document.getElementById('startDate').value;
-            const endStr = document.getElementById('endDate').value;
-            if (!startStr || !endStr) return;
+        function startDrag(e, id, el, parent) {
+            const rect = parent.getBoundingClientRect();
+            const move = (me) => {
+                me.preventDefault();
+                const cx = me.touches ? me.touches[0].clientX : me.clientX, cy = me.touches ? me.touches[0].clientY : me.clientY;
+                let px = (cx - rect.left) / rect.width * 100, py = (cy - rect.top) / rect.height * 100;
+                px = Math.max(0, Math.min(px, 100)); py = Math.max(0, Math.min(py, 100));
+                el.style.left = px + '%'; el.style.top = py + '%';
+                window.lastXY = { id, x: Math.round(px * 12.8), y: Math.round(py * 7.2) };
+            };
+            const stop = () => {
+                document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
+                document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
+                if (window.lastXY) update(ref(db, `devices/${window.lastXY.id}`), { mapX: window.lastXY.x, mapY: window.lastXY.y });
+            };
+            document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
+            document.addEventListener('touchmove', move, { passive: false }); document.addEventListener('touchend', stop);
+        }
 
-            const startTs = new Date(startStr + "T00:00:00").getTime();
-            const endTs = new Date(endStr + "T23:59:59").getTime();
+        window.changeView = (v) => {
+            document.getElementById('btn-list').className = v === 'list' ? 'active' : '';
+            document.getElementById('btn-map').className = v === 'map' ? 'active' : '';
+            document.getElementById('list-container').style.display = v === 'list' ? 'block' : 'none';
+            document.getElementById('map-container').style.display = v === 'map' ? 'block' : 'none';
+            if (v === 'map') window.renderMap();
+        };
 
-            database.ref(`history/${currentDeviceId}`)
-                .orderByKey()
-                .startAt(startTs.toString())
-                .endAt(endTs.toString())
-                .once('value', (snapshot) => {
-                    const data = snapshot.val();
-                    const labels = [], temps = [], humis = [];
-                    if (data) {
-                        Object.keys(data).sort().forEach(ts => {
-                            const date = new Date(parseInt(ts));
-                            labels.push(`${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`);
-                            temps.push(data[ts].temperature);
-                            humis.push(data[ts].humidity);
-                        });
-                    }
-                    renderChart(labels, temps, humis);
+        window.toggleAdmin = () => {
+            if (isAdmin) { isAdmin = false; document.getElementById('adminPanel').style.display = 'none'; }
+            else if (prompt("PW") === "6011") { isAdmin = true; document.getElementById('adminPanel').style.display = 'block'; }
+            renderList();
+        };
+
+        window.openModal = (id, name) => {
+            currentDeviceId = id; 
+            document.getElementById('mTitle').innerText = `${name} 온도 추이`;
+            document.getElementById('modal').style.display = 'flex';
+            window.setPeriod(0); // [수정 1] 카드 클릭 시 당일(0) 조회 
+        };
+
+        window.setPeriod = (days) => {
+            const end = new Date(), start = new Date();
+            if (days === 0) { 
+                start.setHours(0, 0, 0, 0); // [수정 2] 0일 경우 오늘 자정부터 세팅
+            } else {
+                start.setDate(end.getDate() - days);
+            }
+            document.getElementById('startDate').value = start.toISOString().split('T')[0];
+            document.getElementById('endDate').value = end.toISOString().split('T')[0];
+            window.loadFilteredData();
+        };
+
+        window.loadFilteredData = async () => {
+            if (!currentDeviceId) return;
+            const startTime = new Date(document.getElementById('startDate').value + "T00:00:00").getTime();
+            const endTime = new Date(document.getElementById('endDate').value + "T23:59:59").getTime();
+            const snap = await get(ref(db, `history/${currentDeviceId}`));
+            const plotData = [];
+            if (snap.exists()) {
+                Object.entries(snap.val()).forEach(([ts_raw, v]) => {
+                    let ts = parseInt(ts_raw); // [수정 3] +3시간 렌더 찌꺼기 코드 삭제
+                    if (ts >= startTime && ts <= endTime) plotData.push({ x: ts, y: v.temperature });
                 });
-        }
-
-        function renderChart(labels, temps, humis) {
-            const ctx = document.getElementById('tempChart').getContext('2d');
+            }
+            plotData.sort((a, b) => a.x - b.x);
+            const ctx = document.getElementById('canvas').getContext('2d');
             if (myChart) myChart.destroy();
             myChart = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: '온도(°C)', data: temps, borderColor: '#d93025', backgroundColor: 'rgba(217, 48, 37, 0.1)', fill: true, tension: 0.3 },
-                        { label: '습도(%)', data: humis, borderColor: '#1a73e8', borderDash: [5, 5], fill: false, tension: 0.3 }
-                    ]
+                data: { datasets: [{ data: plotData, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, tension: 0.1, pointRadius: 4, fill: true }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'time', time: { unit: 'hour', stepSize: 1, displayFormats: { hour: 'HH:mm' } }, grid: { display: true, color: '#f0f0f0' } },
+                        y: { beginAtZero: false, title: { display: true, text: '온도 (°C)' } }
+                    },
+                    plugins: { legend: { display: false } }
                 },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        function downloadExcel() {
-            const startStr = document.getElementById('startDate').value;
-            const endStr = document.getElementById('endDate').value;
-            database.ref(`history/${currentDeviceId}`)
-                .orderByKey()
-                .startAt(new Date(startStr + "T00:00:00").getTime().toString())
-                .endAt(new Date(endStr + "T23:59:59").getTime().toString())
-                .once('value', (snapshot) => {
-                    const data = snapshot.val();
-                    let csv = "\ufeff시간,온도,습도\n";
-                    if (data) {
-                        Object.keys(data).sort().forEach(ts => {
-                            csv += `${new Date(parseInt(ts)).toLocaleString()},${data[ts].temperature},${data[ts].humidity}\n`;
-                        });
+                plugins: [{
+                    id: 'valLabel',
+                    afterDatasetsDraw(chart) {
+                        const { ctx, data } = chart; ctx.save(); ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#d35400'; ctx.textAlign = 'center';
+                        chart.getDatasetMeta(0).data.forEach((p, i) => ctx.fillText(data.datasets[0].data[i].y + '°', p.x, p.y - 10));
+                        ctx.restore();
                     }
-                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                    const link = document.createElement("a");
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `관제데이터_${currentDeviceId}_${startStr}.csv`;
-                    link.click();
-                });
-        }
+                }]
+            });
+        };
+
+        window.closeModal = () => document.getElementById('modal').style.display = 'none';
+        window.addDev = () => update(ref(db, `devices/${document.getElementById('devId').value}`), { name: document.getElementById('devName').value, floor: document.getElementById('devFloor').value, zone: document.getElementById('devZone').value }).then(() => alert("저장됨"));
+        window.deleteDev = () => confirm("삭제?") && remove(ref(db, `devices/${document.getElementById('devId').value}`));
+        window.downloadExcel = async () => {
+            const snap = await get(ref(db, 'history')), rows = [["ID", "이름", "층", "구역", "온도", "습도", "시간"]];
+            if (snap.exists()) Object.entries(snap.val()).forEach(([id, logs]) => Object.values(logs).forEach(l => rows.push([id, l.name, l.floor, l.zone, l.temperature, l.humidity, l.time])));
+            XLSX.writeFile(XLSX.utils.book_new().appendChild(XLSX.utils.aoa_to_sheet(rows), "Data"), "무역센터점_리포트.xlsx");
+        };
     </script>
 </body>
+
 </html>
