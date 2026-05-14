@@ -22,43 +22,65 @@ def get_sign(content, secret):
 
 def get_tuya_token():
     t = str(int(time.time() * 1000))
-    sign = get_sign(ACCESS_ID + t, ACCESS_SECRET)
-    headers = {'t': t, 'sign': sign, 'client_id': ACCESS_ID}
+    # [수정] 토큰 발급 시 서명 방식 보강 (투야 표준)
+    string_to_sign = ACCESS_ID + t
+    sign = get_sign(string_to_sign, ACCESS_SECRET)
+    
+    headers = {
+        't': t,
+        'sign': sign,
+        'client_id': ACCESS_ID,
+        'sign_method': 'HMAC-SHA256'
+    }
     try:
         response = requests.get(f"{ENDPOINT}/v1.0/token?grant_type=1", headers=headers)
         res = response.json()
-        return res.get('result', {}).get('access_token')
+        if res.get('success'):
+            return res.get('result', {}).get('access_token')
+        else:
+            # 실패 시 파이어베이스에 로그 남김
+            db.reference('debug/token_error').set(res)
+            print(f"토큰 발급 실패 응답: {res}")
+            return None
     except Exception as e:
-        print(f"토큰 발급 실패: {e}")
+        print(f"토큰 발급 예외 발생: {e}")
         return None
 
 def get_device_status(token, device_id):
     t = str(int(time.time() * 1000))
     url = f"/v1.0/devices/{device_id}/status"
     
-    # 보안 서명 계산
+    # [수정] 상세 상태 조회 서명 방식 (투야 표준 V1)
     content_sha256 = hashlib.sha256("".encode('utf-8')).hexdigest()
     string_to_sign = f"GET\n{content_sha256}\n\n{url}"
     sign_content = ACCESS_ID + token + t + string_to_sign
     sign = get_sign(sign_content, ACCESS_SECRET)
     
     headers = {
-        't': t, 'sign': sign, 'client_id': ACCESS_ID,
-        'access_token': token, 'sign_method': 'HMAC-SHA256'
+        't': t,
+        'sign': sign,
+        'client_id': ACCESS_ID,
+        'access_token': token,
+        'sign_method': 'HMAC-SHA256'
     }
     try:
         response = requests.get(f"{ENDPOINT}{url}", headers=headers)
         res = response.json()
-        return res.get('result', [])
+        if res.get('success'):
+            return res.get('result', [])
+        else:
+            db.reference(f'debug/status_error/{device_id}').set(res)
+            return []
     except Exception as e:
         print(f"상태 조회 실패: {e}")
         return []
 
 def collect():
     token = get_tuya_token()
-    if not token: return
+    if not token: 
+        print("토큰 획득 실패로 중단")
+        return
 
-    # 파이어베이스 기기 리스트 참조
     ref = db.reference('devices')
     devices = ref.get()
     if not devices:
@@ -79,7 +101,7 @@ def collect():
                 humi = val / 10 if val > 100 else val
         
         if temp is not None:
-            # 1. 텍스트 시간 갱신: 깃허브 서버(UTC) 기준 +9시간 더해서 KST 문자열 생성
+            # 텍스트 시간 갱신 (KST)
             kst_time = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
             now_str = kst_time.strftime('%Y. %m. %d. %p %I:%M:%S')
             
@@ -89,13 +111,15 @@ def collect():
                 'lastUpdated': now_str
             })
             
-            # 2. 그래프용 히스토리 기록: 절대시간이므로 보정 없이 순수 타임스탬프 적용
+            # 그래프용 히스토리 기록
             ts = int(time.time() * 1000)
             db.reference(f'history/{dev_id}/{ts}').set({
                 'temperature': temp, 
                 'humidity': humi
             })
-            print(f"기기 {dev_id} 업데이트 성공: {temp}°C")
+            print(f"✅ 기기 {dev_id} 업데이트 성공: {temp}°C / {humi}%")
+        else:
+            print(f"⚠️ 기기 {dev_id}에서 유효한 데이터를 가져오지 못했습니다.")
 
 if __name__ == "__main__":
     collect()
