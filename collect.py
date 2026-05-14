@@ -6,9 +6,9 @@ import json
 from firebase_admin import credentials, db, initialize_app
 
 # --- [설정부] ---
-# 투야 API 정보 (대리님이 올려주신 이미지 기반)
+# 투야 API 정보
 ACCESS_ID = "nmy5m7rtv5m7v3v8v8v8"  # 이미지에서 확인된 ID
-ACCESS_SECRET = "b8b8b8b8b8b8b8b8b8b8b8b8" # 보안상 실제 키로 교체 필요
+ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9"
 ENDPOINT = "https://openapi.tuyaasia.com"
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
 
