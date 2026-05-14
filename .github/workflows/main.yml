@@ -23,3 +23,4 @@ jobs:
 
       - name: Run collector
         run: node test.js
+ 
