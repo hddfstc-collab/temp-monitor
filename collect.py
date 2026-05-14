@@ -4,7 +4,7 @@ import datetime
 import hmac
 import hashlib
 
-# --- [설정부] ---
+# --- [기존 정보 유지] ---
 ACCESS_ID = "rqyqdefgxpq8akws93xe" 
 ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9" 
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -15,14 +15,9 @@ def get_sign(content, secret):
 
 def get_tuya_token():
     t = str(int(time.time() * 1000))
-    # 토큰 발급 서명 공식: client_id + t
+    # 토큰 전용 서명: AccessID + Timestamp
     sign = get_sign(ACCESS_ID + t, ACCESS_SECRET)
-    headers = {
-        't': t, 
-        'sign': sign, 
-        'client_id': ACCESS_ID, 
-        'sign_method': 'HMAC-SHA256'
-    }
+    headers = {'t': t, 'sign': sign, 'client_id': ACCESS_ID, 'sign_method': 'HMAC-SHA256'}
     try:
         response = requests.get(f"{ENDPOINT}/v1.0/token?grant_type=1", headers=headers)
         res = response.json()
@@ -34,65 +29,48 @@ def get_tuya_token():
 
 def collect():
     token = get_tuya_token()
-    # 시간 설정 (KST)
-    now_kst_obj = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
-    now_kst = now_kst_obj.strftime('%Y. %m. %d. %p %I:%M:%S')
+    now_kst = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).strftime('%Y. %m. %d. %p %I:%M:%S')
 
     if not token:
-        # 실패 시 기록
-        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "tuya_token_failed", "time": now_kst})
+        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "tuya_token_failed", "at": now_kst})
         return
 
-    # 대리님 기기 ID (eb0b...)
     dev_id = "eb0b4a165182f9fd92d7yb" 
     t = str(int(time.time() * 1000))
     url = f"/v1.0/devices/{dev_id}/status"
     
-    # 상세 상태 조회용 서명 공식: client_id + access_token + t + stringToSign
+    # 데이터 조회용 서명: AccessID + Token + Timestamp + StringToSign
     content_sha256 = hashlib.sha256("".encode('utf-8')).hexdigest()
     string_to_sign = f"GET\n{content_sha256}\n\n{url}"
-    sign_content = ACCESS_ID + token + t + string_to_sign
-    sign = get_sign(sign_content, ACCESS_SECRET)
+    sign = get_sign(ACCESS_ID + token + t + string_to_sign, ACCESS_SECRET)
     
-    headers = {
-        't': t, 
-        'sign': sign, 
-        'client_id': ACCESS_ID, 
-        'access_token': token, 
-        'sign_method': 'HMAC-SHA256'
-    }
+    headers = {'t': t, 'sign': sign, 'client_id': ACCESS_ID, 'access_token': token, 'sign_method': 'HMAC-SHA256'}
     
     try:
-        response = requests.get(f"{ENDPOINT}{url}", headers=headers)
-        res = response.json()
-        
+        res = requests.get(f"{ENDPOINT}{url}", headers=headers).json()
         if not res.get('success'):
-            requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "device_status_failed", "res": res, "time": now_kst})
+            requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "fetch_failed", "res": res, "at": now_kst})
             return
 
         status = res.get('result', [])
         temp, humi = None, None
         for item in status:
-            code = item['code']
-            val = item['value']
-            # 온도/습도 코드 매칭
-            if code in ['va_temperature', 'temp_current']:
+            if item['code'] in ['va_temperature', 'temp_current']:
+                val = item['value']
                 temp = val / 10 if val > 100 else val
-            if code in ['va_humidity', 'humidity_value']:
+            if item['code'] in ['va_humidity', 'humidity_value']:
+                val = item['value']
                 humi = val / 10 if val > 100 else val
         
         if temp is not None:
             ts = str(int(time.time() * 1000))
-            # 파이어베이스 전송 (직접 PATCH 방식)
+            # 파이어베이스 업데이트
             requests.patch(f"{FIREBASE_URL}/devices/{dev_id}.json", json={"temperature": temp, "humidity": humi, "lastUpdated": now_kst})
             requests.patch(f"{FIREBASE_URL}/history/{dev_id}/{ts}.json", json={"temperature": temp, "humidity": humi})
-            requests.patch(f"{FIREBASE_URL}/debug.json", json={"last_success": now_kst, "temp": temp, "status": "OK"})
-            print(f"✅ 수집 완료: {temp}도")
-        else:
-            requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "no_temp_data", "time": now_kst})
-            
+            requests.patch(f"{FIREBASE_URL}/debug.json", json={"last_success": now_kst, "temp": temp})
+            print(f"✅ 성공: {temp}도")
     except Exception as e:
-        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": str(e), "time": now_kst})
+        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": str(e), "at": now_kst})
 
 if __name__ == "__main__":
     collect()
