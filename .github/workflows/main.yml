@@ -2,25 +2,24 @@ name: Temperature Collector (Node.js)
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # 10분마다 자동으로 실행
-  workflow_dispatch: # 수동 실행 버튼을 활성화합니다.
+    - cron: '*/12 * * * *'  # 10분마다 자동으로 실행해라 (핵심!)
+  workflow_dispatch:        # 내가 원할 때 버튼 눌러서 실행하겠다
+  push:
+    branches: [ main ]      # 코드 수정해서 올릴 때도 실행해라
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
       - name: Install dependencies
-        run: |
-          npm install
+        run: npm install @tuya/tuya-connector-nodejs firebase-admin
 
       - name: Run collector
-        run: node test.js # 이제 collect.py 대신 test.js를 실행합니다!
+        run: node test.js
