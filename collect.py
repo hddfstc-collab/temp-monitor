@@ -13,7 +13,7 @@ ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9"
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
 ENDPOINT = "https://openapi.tuyaus.com" 
 
-# 파이어베이스 초기화
+# 파이어베이스 초기화 (인증 키 없이 URL로만 접속 시도)
 if not firebase_admin._apps:
     firebase_admin.initialize_app(options={'databaseURL': FIREBASE_URL})
 
@@ -22,104 +22,57 @@ def get_sign(content, secret):
 
 def get_tuya_token():
     t = str(int(time.time() * 1000))
-    # [수정] 토큰 발급 시 서명 방식 보강 (투야 표준)
     string_to_sign = ACCESS_ID + t
     sign = get_sign(string_to_sign, ACCESS_SECRET)
-    
-    headers = {
-        't': t,
-        'sign': sign,
-        'client_id': ACCESS_ID,
-        'sign_method': 'HMAC-SHA256'
-    }
+    headers = {'t': t, 'sign': sign, 'client_id': ACCESS_ID, 'sign_method': 'HMAC-SHA256'}
     try:
         response = requests.get(f"{ENDPOINT}/v1.0/token?grant_type=1", headers=headers)
         res = response.json()
-        if res.get('success'):
-            return res.get('result', {}).get('access_token')
-        else:
-            # 실패 시 파이어베이스에 로그 남김
-            db.reference('debug/token_error').set(res)
-            print(f"토큰 발급 실패 응답: {res}")
-            return None
-    except Exception as e:
-        print(f"토큰 발급 예외 발생: {e}")
-        return None
+        return res.get('result', {}).get('access_token') if res.get('success') else None
+    except: return None
 
 def get_device_status(token, device_id):
     t = str(int(time.time() * 1000))
     url = f"/v1.0/devices/{device_id}/status"
-    
-    # [수정] 상세 상태 조회 서명 방식 (투야 표준 V1)
     content_sha256 = hashlib.sha256("".encode('utf-8')).hexdigest()
     string_to_sign = f"GET\n{content_sha256}\n\n{url}"
     sign_content = ACCESS_ID + token + t + string_to_sign
     sign = get_sign(sign_content, ACCESS_SECRET)
-    
-    headers = {
-        't': t,
-        'sign': sign,
-        'client_id': ACCESS_ID,
-        'access_token': token,
-        'sign_method': 'HMAC-SHA256'
-    }
+    headers = {'t': t, 'sign': sign, 'client_id': ACCESS_ID, 'access_token': token, 'sign_method': 'HMAC-SHA256'}
     try:
         response = requests.get(f"{ENDPOINT}{url}", headers=headers)
-        res = response.json()
-        if res.get('success'):
-            return res.get('result', [])
-        else:
-            db.reference(f'debug/status_error/{device_id}').set(res)
-            return []
-    except Exception as e:
-        print(f"상태 조회 실패: {e}")
-        return []
+        return response.json().get('result', [])
+    except: return []
 
 def collect():
     token = get_tuya_token()
-    if not token: 
-        print("토큰 획득 실패로 중단")
+    if not token:
+        # 토큰 실패 시 강제로 파이어베이스에 흔적 남기기 (REST API 방식)
+        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "tuya_token_failed", "time": str(datetime.datetime.now())})
         return
 
-    ref = db.reference('devices')
-    devices = ref.get()
-    if not devices:
-        print("조회할 기기가 없습니다.")
-        return
+    # 기기 목록 (대리님 기기 ID 직접 입력 - 가장 확실한 방법)
+    dev_ids = ["eb0b4a165182f9fd92d7yb"] 
 
-    for dev_id in devices:
+    for dev_id in dev_ids:
         status = get_device_status(token, dev_id)
         temp, humi = None, None
-        
         for item in status:
-            code = item['code']
-            val = item['value']
-            # 센서 모델별 코드 대응
-            if code in ['va_temperature', 'temp_current']:
+            if item['code'] in ['va_temperature', 'temp_current']:
+                val = item['value']
                 temp = val / 10 if val > 100 else val
-            if code in ['va_humidity', 'humidity_value']:
+            if item['code'] in ['va_humidity', 'humidity_value']:
+                val = item['value']
                 humi = val / 10 if val > 100 else val
         
         if temp is not None:
-            # 텍스트 시간 갱신 (KST)
-            kst_time = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
-            now_str = kst_time.strftime('%Y. %m. %d. %p %I:%M:%S')
-            
-            ref.child(dev_id).update({
-                'temperature': temp, 
-                'humidity': humi, 
-                'lastUpdated': now_str
-            })
-            
-            # 그래프용 히스토리 기록
+            now_kst = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).strftime('%Y. %m. %d. %p %I:%M:%S')
             ts = int(time.time() * 1000)
-            db.reference(f'history/{dev_id}/{ts}').set({
-                'temperature': temp, 
-                'humidity': humi
-            })
-            print(f"✅ 기기 {dev_id} 업데이트 성공: {temp}°C / {humi}%")
-        else:
-            print(f"⚠️ 기기 {dev_id}에서 유효한 데이터를 가져오지 못했습니다.")
+            
+            # 파이어베이스 데이터 전송 (SDK 대신 직접 전송 방식 사용 - 오류 방지)
+            requests.patch(f"{FIREBASE_URL}/devices/{dev_id}.json", json={"temperature": temp, "humidity": humi, "lastUpdated": now_kst})
+            requests.set(f"{FIREBASE_URL}/history/{dev_id}/{ts}.json", json={"temperature": temp, "humidity": humi})
+            print(f"✅ 수집 성공: {temp}도")
 
 if __name__ == "__main__":
     collect()
