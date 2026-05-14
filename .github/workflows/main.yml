@@ -1,20 +1,27 @@
-name: 무역센터 온도 자동수집
+name: Temperature Collector
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # 10분마다 실행
-  workflow_dispatch:        # 수동 실행 버튼 활성화
+    - cron: '*/10 * * * *' # 10분마다 자동 실행
+  workflow_dispatch: # 수동 실행 버튼 활성화
 
 jobs:
-  collect:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - name: 파이썬 세팅
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - name: 필수 도구 설치
-        run: pip install requests firebase-admin
-      - name: 데이터 수집 시작
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run collector
         run: python collect.py
