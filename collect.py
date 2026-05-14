@@ -8,7 +8,7 @@ import hashlib
 ACCESS_ID = "rqyqdefgxpq8akws93xe" 
 ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9" 
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
-ENDPOINT = "https://openapi-us.tuya.com"
+ENDPOINT = "https://openapi.tuyaus.com"
 
 def get_sign(content, secret):
     return hmac.new(secret.encode(), content.encode(), hashlib.sha256).hexdigest().upper()
