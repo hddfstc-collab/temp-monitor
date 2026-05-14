@@ -258,11 +258,11 @@
 
     <div id="map-container">
         <div class="map-section">
-            <div class="map-title" style="color:var(--9f);">9F 평면도 관제</div>
+            <div class="map-title" style="color:var(--9f);">9F</div>
             <div class="map-wrapper" id="map9-box"></div>
         </div>
         <div class="map-section">
-            <div class="map-title" style="color:var(--8f);">8F 평면도 관제</div>
+            <div class="map-title" style="color:var(--8f);">8F</div>
             <div class="map-wrapper" id="map8-box"></div>
         </div>
     </div>
@@ -541,70 +541,77 @@
         };
 
         window.loadFilteredData = async () => {
-            if (!currentDeviceId) return;
-            
-            const startStr = document.getElementById('startDate').value;
-            const endStr = document.getElementById('endDate').value;
-            
-            if (!startStr || !endStr) return;
+    if (!currentDeviceId) return;
+    
+    const startStr = document.getElementById('startDate').value;
+    const endStr = document.getElementById('endDate').value;
+    
+    if (!startStr || !endStr) return;
 
-            const startTime = new Date(startStr + "T00:00:00").getTime();
-            const endTime = new Date(endStr + "T23:59:59").getTime();
+    const startTime = new Date(startStr + "T00:00:00").getTime();
+    const endTime = new Date(endStr + "T23:59:59").getTime();
+    
+    const snap = await get(ref(db, `history/${currentDeviceId}`));
+    const plotData = [];
+    
+    if (snap.exists()) {
+        Object.entries(snap.val()).forEach(([timestamp, value]) => {
+            // 1. 파이어베이스의 문자열 타임스탬프를 숫자로 변환
+            let ts = parseInt(timestamp);
             
-            // Firebase에서 이력 데이터 조회
-            const snap = await get(ref(db, `history/${currentDeviceId}`));
-            const plotData = [];
-            
-            if (snap.exists()) {
-                Object.entries(snap.val()).forEach(([timestamp, value]) => {
-                    const ts = parseInt(timestamp);
-                    if (ts >= startTime && ts <= endTime) {
-                        plotData.push({ x: ts, y: value.temperature });
-                    }
-                });
+            // 2. 🕒 시간 보정: UTC와 KST의 시차인 3시간을 더해줌
+            // (3시간 = 10,800,000 밀리초)
+            ts += (3 * 60 * 60 * 1000); 
+
+            // 3. 보정된 시간이 사용자가 선택한 조회 범위 내에 있는지 확인
+            if (ts >= startTime && ts <= endTime) {
+                plotData.push({ x: ts, y: value.temperature });
             }
-            
-            // 시간순 정렬
-            plotData.sort((a, b) => a.x - b.x);
+        });
+    }
+    
+    // 시간순 정렬
+    plotData.sort((a, b) => a.x - b.x);
 
-            // 차트 생성 및 업데이트
-            const ctx = document.getElementById('canvas').getContext('2d');
-            if (myChart) myChart.destroy();
-            
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: [{
-                        label: '실시간 온도 (°C)',
-                        data: plotData,
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        pointRadius: plotData.length > 60 ? 0 : 3,
-                        fill: true
-                    }]
+    // 차트 생성 및 업데이트
+    const ctx = document.getElementById('canvas').getContext('2d');
+    if (myChart) myChart.destroy();
+    
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: '실시간 온도 (°C)',
+                data: plotData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: plotData.length > 60 ? 0 : 3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    type: 'time', 
+                    // 데이터 양에 따라 단위 자동 조절
+                    time: { unit: plotData.length > 150 ? 'day' : 'hour' },
+                    grid: { display: false }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            type: 'time', 
-                            time: { unit: plotData.length > 150 ? 'day' : 'hour' },
-                            grid: { display: false }
-                        },
-                        y: {
-                            beginAtZero: false,
-                            title: { display: true, text: '온도 (°C)' }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'top' }
-                    }
+                y: {
+                    beginAtZero: false,
+                    title: { display: true, text: '온도 (°C)' }
                 }
-            });
-        };
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+};
 
         window.closeModal = () => {
             document.getElementById('modal').style.display = 'none';
