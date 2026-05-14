@@ -1,12 +1,19 @@
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const admin = require('firebase-admin');
 
-// 1. 파이어베이스 설정 (아까 넣으신 JSON 내용을 여기에 그대로 유지하세요!)
+// 1. 파이어베이스 설정
+// 다운로드받은 JSON 파일의 내용을 { } 포함해서 아래 ` ` 사이에 붙여넣으세요.
 const serviceAccount = JSON.parse(`
 {
   "type": "service_account",
   "project_id": "temp-monitoring-8b172",
-  ... (파이어베이스 키 내용 생략, 기존 내용 유지)
+  "private_key_id": "여기에_입력",
+  "private_key": "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n",
+  "client_email": "여기에_입력",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "여기에_입력"
 }
 `);
 
@@ -18,7 +25,7 @@ if (!admin.apps.length) {
 }
 const db = admin.database();
 
-// 2. 투야 설정 (사진에서 확인된 값입니다)
+// 2. 투야 설정 (사진 image_afacd8.png 확인 값)
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
   accessKey: 'rqyqdefgxpq8akws93xe',
@@ -28,10 +35,11 @@ const context = new TuyaContext({
 async function collect() {
   const now = new Date();
   const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-  const deviceId = "eb0b4a165182f9fd92d7yb"; // 사진에 찍힌 온습도계 ID
+  const deviceId = "eb0b4a165182f9fd92d7yb"; // 사진 image_afacb4.png 확인 값
+
+  console.log(`[${kstTime}] 데이터 수집 시도 중...`);
 
   try {
-    // ⚠️ 핵심: 공식 라이브러리의 request 기능을 사용하여 서명을 자동 생성합니다.
     const res = await context.request({
       path: `/v1.0/devices/${deviceId}/status`,
       method: 'GET',
@@ -58,11 +66,11 @@ async function collect() {
       await db.ref('debug').update({ last_success: kstTime, temp: temp, status: "OK", error: null });
       console.log(`✅ 성공: ${temp}도`);
     } else {
-      // 투야가 뱉는 구체적인 에러 메시지를 파이어베이스에 남깁니다.
       await db.ref('debug').update({ error: res.msg, code: res.code, at: kstTime, status: "Tuya Error" });
       console.log(`❌ 투야 에러: ${res.msg}`);
     }
   } catch (e) {
+    console.error("시스템 에러:", e.message);
     await db.ref('debug').update({ error: e.message, at: kstTime, status: "System Error" });
   }
 }
