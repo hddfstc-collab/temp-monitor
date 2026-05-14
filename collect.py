@@ -4,18 +4,18 @@ import datetime
 import hmac
 import hashlib
 
-# --- [설정 정보] ---
+# --- [기존 정보 동일] ---
 ACCESS_ID = "rqyqdefgxpq8akws93xe" 
 ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9" 
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
-ENDPOINT = "https://openapi.tuyaus.com"
+ENDPOINT = "https://openapi.tuyaus.com" 
 
 def get_sign(content, secret):
     return hmac.new(secret.encode(), content.encode(), hashlib.sha256).hexdigest().upper()
 
 def get_tuya_token():
     t = str(int(time.time() * 1000))
-    # ⚠️ 핵심: 토큰 발급 시 서명은 ID + 시간만 필요합니다.
+    # 토큰 발급용 서명: AccessID + Timestamp
     sign = get_sign(ACCESS_ID + t, ACCESS_SECRET)
     headers = {
         't': t,
@@ -37,15 +37,15 @@ def collect():
     now_kst = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).strftime('%Y. %m. %d. %p %I:%M:%S')
 
     if not token:
-        # 실패하면 파이어베이스에 에러를 찍습니다.
-        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "tuya_token_failed", "at": now_kst})
+        # 이 부분이 실행된다면 여전히 토큰 발급에 문제가 있는 것입니다.
+        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "tuya_token_failed_final", "at": now_kst})
         return
 
     dev_id = "eb0b4a165182f9fd92d7yb" 
     t = str(int(time.time() * 1000))
     url = f"/v1.0/devices/{dev_id}/status"
     
-    # 데이터 조회용 서명 (이건 방식이 또 다릅니다)
+    # 데이터 조회용 서명 생성 (최신 방식 적용)
     content_sha256 = hashlib.sha256("".encode('utf-8')).hexdigest()
     string_to_sign = f"GET\n{content_sha256}\n\n{url}"
     sign = get_sign(ACCESS_ID + token + t + string_to_sign, ACCESS_SECRET)
@@ -76,7 +76,7 @@ def collect():
                 requests.patch(f"{FIREBASE_URL}/devices/{dev_id}.json", json={"temperature": temp, "humidity": humi, "lastUpdated": now_kst})
                 requests.patch(f"{FIREBASE_URL}/history/{dev_id}/{ts}.json", json={"temperature": temp, "humidity": humi})
                 requests.patch(f"{FIREBASE_URL}/debug.json", json={"last_success": now_kst, "temp": temp})
-                print(f"✅ 수집 성공: {temp}도")
+                print(f"✅ 성공: {temp}도")
         else:
             requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": "fetch_failed", "res": res, "at": now_kst})
     except Exception as e:
