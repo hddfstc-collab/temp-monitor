@@ -254,13 +254,36 @@
             plotData.sort((a, b) => a.x - b.x);
             const ctx = document.getElementById('canvas').getContext('2d');
             if (myChart) myChart.destroy();
+
             myChart = new Chart(ctx, {
                 type: 'line',
-                data: { datasets: [{ data: plotData, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 2, tension: 0.1, pointRadius: 4, fill: true }] },
+                data: {
+                    datasets: [{
+                        data: plotData,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true,
+                        // [수정] 이전 데이터와 값이 다를 때만 점(Radius)을 표시 (크기 4, 같으면 0)
+                        pointRadius: plotData.map((d, i) => (i === 0 || d.y !== plotData[i - 1].y) ? 4 : 0),
+                        pointHitRadius: 10 // 마우스 갖다 대면 인식은 잘 되게 유지
+                    }]
+                },
                 options: {
-                    responsive: true, maintainAspectRatio: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
-                        x: { type: 'time', time: { unit: 'hour', stepSize: 1, displayFormats: { hour: 'HH:mm' } }, grid: { display: true, color: '#f0f0f0' } },
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                // [수정] 라벨 간격을 3시간 단위로 변경하여 시원하게 표시
+                                stepSize: 3, 
+                                displayFormats: { hour: 'HH:mm' }
+                            },
+                            grid: { display: true, color: '#f0f0f0' }
+                        },
                         y: { beginAtZero: false, title: { display: true, text: '온도 (°C)' } }
                     },
                     plugins: { legend: { display: false } }
@@ -268,8 +291,21 @@
                 plugins: [{
                     id: 'valLabel',
                     afterDatasetsDraw(chart) {
-                        const { ctx, data } = chart; ctx.save(); ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#d35400'; ctx.textAlign = 'center';
-                        chart.getDatasetMeta(0).data.forEach((p, i) => ctx.fillText(data.datasets[0].data[i].y + '°', p.x, p.y - 10));
+                        const { ctx, data } = chart;
+                        ctx.save();
+                        ctx.font = 'bold 11px Arial';
+                        ctx.fillStyle = '#d35400';
+                        ctx.textAlign = 'center';
+                        
+                        chart.getDatasetMeta(0).data.forEach((p, i) => {
+                            // [수정] 이전 데이터와 온도가 다를 때만 텍스트(온도°)를 그림
+                            const currentVal = data.datasets[0].data[i].y;
+                            const prevVal = i > 0 ? data.datasets[0].data[i - 1].y : null;
+                            
+                            if (i === 0 || currentVal !== prevVal) {
+                                ctx.fillText(currentVal + '°', p.x, p.y - 10);
+                            }
+                        });
                         ctx.restore();
                     }
                 }]
