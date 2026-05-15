@@ -1,8 +1,6 @@
 name: Temperature Collector (Node.js)
 
 on:
-  schedule:
-    - cron: '*/12 * * * *'  # 10분마다 자동으로 실행해라 (핵심!)
   workflow_dispatch:        # 내가 원할 때 버튼 눌러서 실행하겠다
   push:
     branches: [ main ]      # 코드 수정해서 올릴 때도 실행해라
