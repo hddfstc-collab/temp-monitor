@@ -116,6 +116,11 @@
                     <button onclick="setPeriod(90)">3개월</button>
                     <button onclick="setPeriod(365)">1년</button>
                 </div>
+                <div class="toggle-container" style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                    <button id="togglePeriodBtn" onclick="toggleChartPeriod()" style="padding: 8px 16px; font-weight: bold; cursor: pointer; border-radius: 8px; border: 1px solid #ddd; background-color: #fff; transition: all 0.2s;">
+                        ⏱️ 영업시간만 보기 (10시~21시)
+                    </button>
+                </div>
             </div>
             <div style="flex:1; padding:20px;"><canvas id="canvas"></canvas></div>
         </div>
@@ -139,6 +144,10 @@
         const mapImages = { '8층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%208F.jpg', '9층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%209F.jpg' };
 
         let sensorData = {}, isAdmin = false, myChart = null, currentDeviceId = null;
+        
+        // [추가] 토글 상태 및 차트 데이터 저장 변수
+        window.isBusinessHoursOnly = true;
+        window.currentPlotData = [];
 
         onValue(ref(db, 'devices'), snap => {
             sensorData = snap.val() || {};
@@ -224,19 +233,40 @@
             currentDeviceId = id; 
             document.getElementById('mTitle').innerText = `${name} 온도 추이`;
             document.getElementById('modal').style.display = 'flex';
-            window.setPeriod(0); // [수정 1] 카드 클릭 시 당일(0) 조회 
+            window.setPeriod(0); 
         };
 
         window.setPeriod = (days) => {
             const end = new Date(), start = new Date();
             if (days === 0) { 
-                start.setHours(0, 0, 0, 0); // [수정 2] 0일 경우 오늘 자정부터 세팅
+                start.setHours(0, 0, 0, 0); 
             } else {
                 start.setDate(end.getDate() - days);
             }
             document.getElementById('startDate').value = start.toISOString().split('T')[0];
             document.getElementById('endDate').value = end.toISOString().split('T')[0];
             window.loadFilteredData();
+        };
+
+        // [추가] 토글 버튼 작동 함수
+        window.toggleChartPeriod = () => {
+            window.isBusinessHoursOnly = !window.isBusinessHoursOnly;
+            
+            const btn = document.getElementById('togglePeriodBtn');
+            if (window.isBusinessHoursOnly) {
+                btn.innerText = "⏱️ 영업시간만 보기 (10시~21시)";
+                btn.style.backgroundColor = "#ffffff";
+                btn.style.color = "#333333";
+                btn.style.borderColor = "#dddddd";
+            } else {
+                btn.innerText = "🌐 전체 데이터 보기 (24시간)";
+                btn.style.backgroundColor = "#2ecc71";
+                btn.style.color = "#ffffff";
+                btn.style.borderColor = "#2ecc71";
+            }
+            
+            // 데이터는 그대로 두고 차트 화면만 다시 그림
+            window.renderChart();
         };
 
         window.loadFilteredData = async () => {
@@ -247,13 +277,30 @@
             const plotData = [];
             if (snap.exists()) {
                 Object.entries(snap.val()).forEach(([ts_raw, v]) => {
-                    let ts = parseInt(ts_raw); // [수정 3] +3시간 렌더 찌꺼기 코드 삭제
+                    let ts = parseInt(ts_raw);
                     if (ts >= startTime && ts <= endTime) plotData.push({ x: ts, y: v.temperature });
                 });
             }
             plotData.sort((a, b) => a.x - b.x);
+            
+            // [수정] 불러온 데이터를 전역 변수에 저장 후 그리는 함수 호출
+            window.currentPlotData = plotData;
+            window.renderChart();
+        };
+
+        // [추가] 차트를 화면에 그리는 전담 함수
+        window.renderChart = () => {
+            const plotData = window.currentPlotData;
             const ctx = document.getElementById('canvas').getContext('2d');
             if (myChart) myChart.destroy();
+            
+            if (!plotData || plotData.length === 0) return;
+
+            // 검색된 날짜를 기준으로 10시와 21시 범위 지정
+            const sStr = document.getElementById('startDate').value;
+            const eStr = document.getElementById('endDate').value;
+            const minTime = new Date(sStr + "T10:00:00").getTime();
+            const maxTime = new Date(eStr + "T21:00:00").getTime();
 
             myChart = new Chart(ctx, {
                 type: 'line',
@@ -265,9 +312,9 @@
                         borderWidth: 2,
                         tension: 0.1,
                         fill: true,
-                        // [수정] 이전 데이터와 값이 다를 때만 점(Radius)을 표시 (크기 4, 같으면 0)
+                        // 온도가 바뀔 때만 점 표시
                         pointRadius: plotData.map((d, i) => (i === 0 || d.y !== plotData[i - 1].y) ? 4 : 0),
-                        pointHitRadius: 10 // 마우스 갖다 대면 인식은 잘 되게 유지
+                        pointHitRadius: 10
                     }]
                 },
                 options: {
@@ -278,10 +325,13 @@
                             type: 'time',
                             time: {
                                 unit: 'hour',
-                                // [수정] 라벨 간격을 3시간 단위로 변경하여 시원하게 표시
-                                stepSize: 3, 
+                                // 토글 상태에 따른 X축 간격 변화
+                                stepSize: window.isBusinessHoursOnly ? 2 : 3, 
                                 displayFormats: { hour: 'HH:mm' }
                             },
+                            // 토글 상태에 따른 데이터 범위 크롭
+                            min: window.isBusinessHoursOnly ? minTime : undefined,
+                            max: window.isBusinessHoursOnly ? maxTime : undefined,
                             grid: { display: true, color: '#f0f0f0' }
                         },
                         y: { beginAtZero: false, title: { display: true, text: '온도 (°C)' } }
@@ -298,8 +348,12 @@
                         ctx.textAlign = 'center';
                         
                         chart.getDatasetMeta(0).data.forEach((p, i) => {
-                            // [수정] 이전 데이터와 온도가 다를 때만 텍스트(온도°)를 그림
-                            const currentVal = data.datasets[0].data[i].y;
+                            const currentPoint = data.datasets[0].data[i];
+                            
+                            // 범위 밖의 데이터 라벨은 그리지 않음
+                            if (window.isBusinessHoursOnly && (currentPoint.x < minTime || currentPoint.x > maxTime)) return;
+
+                            const currentVal = currentPoint.y;
                             const prevVal = i > 0 ? data.datasets[0].data[i - 1].y : null;
                             
                             if (i === 0 || currentVal !== prevVal) {
