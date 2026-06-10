@@ -15,7 +15,8 @@ const serviceAccount = {
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40temp-monitoring-8b172.iam.gserviceaccount.com"
 };
 
-if (!admin.apps.length) {
+// [수정 핵심] 에러를 유발하던 admin.apps.length 문법을 최신 안전 문법으로 변경
+if (!admin.apps || admin.apps.length === 0) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -58,7 +59,7 @@ async function collect() {
 
       // 기존 데이터 형식 그대로 history 누적
       await db.ref(`history/${deviceId}/${timestamp}`).set({
-        battery: battery || 36, // 배터리 값이 안 오면 기존 36 유지
+        battery: battery || 36, 
         humidity: humi,
         name: "SK2",
         temperature: temp,
@@ -77,9 +78,11 @@ async function collect() {
       await db.ref('debug').update({ last_success: kstTime, status: "OK", temp: temp });
       process.exit(0);
     } else {
+      await db.ref('debug').update({ last_fail: kstTime, status: "TUYA_FAIL", reason: res.msg });
       process.exit(1);
     }
   } catch (e) {
+    await db.ref('debug').update({ last_fail: kstTime, status: "CRASH", error: e.message });
     process.exit(1);
   }
 }
