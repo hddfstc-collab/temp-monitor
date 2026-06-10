@@ -20,5 +20,8 @@ jobs:
         run: npm install @tuya/tuya-connector-nodejs firebase-admin
 
       - name: Run collector
+        env:
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          TUYA_SECRET_KEY: ${{ secrets.TUYA_SECRET_KEY }}
         run: node test.js
  
