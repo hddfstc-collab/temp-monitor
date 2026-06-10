@@ -70,6 +70,7 @@
     </header>
 
     <div id="adminPanel">
+        <input type="text" id="devMarking" placeholder="기기 마킹 (A, B, C...)" style="width:100%; margin-bottom:8px; text-transform: uppercase;">
         <input type="text" id="devId" placeholder="기기 ID" style="width:100%; margin-bottom:8px;">
         <input type="text" id="devName" placeholder="브랜드명" style="width:100%; margin-bottom:8px;">
         <div style="display:flex; gap:8px; margin-bottom:8px;">
@@ -145,7 +146,6 @@
 
         let sensorData = {}, isAdmin = false, myChart = null, currentDeviceId = null;
         
-        // [추가] 토글 상태 및 차트 데이터 저장 변수
         window.isBusinessHoursOnly = true;
         window.currentPlotData = [];
 
@@ -158,14 +158,33 @@
         function renderList() {
             const g8 = document.getElementById('grid-8f'), g9 = document.getElementById('grid-9f');
             g8.innerHTML = ''; g9.innerHTML = '';
-            Object.entries(sensorData).forEach(([id, info]) => {
+            
+            // [변경 2] 알파벳 마킹 기준으로 정렬하여 리스트 출력 (A, B, C... 순 정렬)
+            const sortedDevices = Object.entries(sensorData).sort((a, b) => {
+                const markA = a[1].marking || 'ZZZ';
+                const markB = b[1].marking || 'ZZZ';
+                return markA.localeCompare(markB);
+            });
+
+            sortedDevices.forEach(([id, info]) => {
                 const card = document.createElement('div');
                 card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
-                card.onclick = () => isAdmin ? (document.getElementById('devId').value = id, document.getElementById('devName').value = info.name) : window.openModal(id, info.name);
+                
+                // [변경 3] 카드 클릭 시 마킹 인풋창에도 데이터 연동되게 수정
+                card.onclick = () => isAdmin ? (
+                    document.getElementById('devId').value = id, 
+                    document.getElementById('devName').value = info.name,
+                    document.getElementById('devFloor').value = info.floor || '9층',
+                    document.getElementById('devZone').value = info.zone || '1구역',
+                    document.getElementById('devMarking').value = info.marking || ''
+                ) : window.openModal(id, info.name);
                 
                 const battColor = (info.battery || 0) < 20 ? 'red' : '#666';
+                
+                // [변경 4] 웹 대시보드 카드 디자인에 알파벳 마킹 [A] 표시되도록 바인딩
                 card.innerHTML = `
-                    <span class="zone-label">${info.zone}</span><div class="brand-label">${info.name}</div>
+                    <span class="zone-label">${info.zone}</span>
+                    <div class="brand-label">${info.marking ? `[${info.marking}] ` : ''}${info.name}</div>
                     <div style="display:flex; justify-content:space-between; align-items:flex-end;">
                         <div class="temp-main">${info.temperature || 0}°</div>
                         <div style="font-size:11px; color:#666; font-weight:600; text-align:right;">
@@ -188,6 +207,9 @@
                 dot.style.left = ((info.mapX || 50) / 12.8) + '%'; dot.style.top = ((info.mapY || 50) / 7.2) + '%';
                 const t = parseFloat(info.temperature || 0);
                 dot.style.backgroundColor = t > 26 ? 'var(--danger)' : (t < 23 ? 'var(--cold)' : 'var(--safe)');
+                
+                // [변경 5] 지도 뷰 마우스 오버 시 마킹과 브랜드명이 직관적으로 나타나도록 타이틀 추가
+                dot.title = `${info.marking ? `[${info.marking}] ` : ''}${info.name}`;
                 dot.innerHTML = `<b>${t}</b>`;
                 const box = info.floor === '9층' ? b9 : b8;
                 dot.onmousedown = (e) => isAdmin ? startDrag(e, id, dot, box) : window.openModal(id, info.name);
@@ -248,7 +270,6 @@
             window.loadFilteredData();
         };
 
-        // [추가] 토글 버튼 작동 함수
         window.toggleChartPeriod = () => {
             window.isBusinessHoursOnly = !window.isBusinessHoursOnly;
             
@@ -264,8 +285,6 @@
                 btn.style.color = "#ffffff";
                 btn.style.borderColor = "#2ecc71";
             }
-            
-            // 데이터는 그대로 두고 차트 화면만 다시 그림
             window.renderChart();
         };
 
@@ -282,13 +301,10 @@
                 });
             }
             plotData.sort((a, b) => a.x - b.x);
-            
-            // [수정] 불러온 데이터를 전역 변수에 저장 후 그리는 함수 호출
             window.currentPlotData = plotData;
             window.renderChart();
         };
 
-        // [추가] 차트를 화면에 그리는 전담 함수
         window.renderChart = () => {
             const plotData = window.currentPlotData;
             const ctx = document.getElementById('canvas').getContext('2d');
@@ -296,7 +312,6 @@
             
             if (!plotData || plotData.length === 0) return;
 
-            // 검색된 날짜를 기준으로 10시와 21시 범위 지정
             const sStr = document.getElementById('startDate').value;
             const eStr = document.getElementById('endDate').value;
             const minTime = new Date(sStr + "T10:00:00").getTime();
@@ -312,7 +327,6 @@
                         borderWidth: 2,
                         tension: 0.1,
                         fill: true,
-                        // 온도가 바뀔 때만 점 표시
                         pointRadius: plotData.map((d, i) => (i === 0 || d.y !== plotData[i - 1].y) ? 4 : 0),
                         pointHitRadius: 10
                     }]
@@ -325,11 +339,9 @@
                             type: 'time',
                             time: {
                                 unit: 'hour',
-                                // 토글 상태에 따른 X축 간격 변화
                                 stepSize: window.isBusinessHoursOnly ? 2 : 3, 
                                 displayFormats: { hour: 'HH:mm' }
                             },
-                            // 토글 상태에 따른 데이터 범위 크롭
                             min: window.isBusinessHoursOnly ? minTime : undefined,
                             max: window.isBusinessHoursOnly ? maxTime : undefined,
                             grid: { display: true, color: '#f0f0f0' }
@@ -349,8 +361,6 @@
                         
                         chart.getDatasetMeta(0).data.forEach((p, i) => {
                             const currentPoint = data.datasets[0].data[i];
-                            
-                            // 범위 밖의 데이터 라벨은 그리지 않음
                             if (window.isBusinessHoursOnly && (currentPoint.x < minTime || currentPoint.x > maxTime)) return;
 
                             const currentVal = currentPoint.y;
@@ -367,12 +377,45 @@
         };
 
         window.closeModal = () => document.getElementById('modal').style.display = 'none';
-        window.addDev = () => update(ref(db, `devices/${document.getElementById('devId').value}`), { name: document.getElementById('devName').value, floor: document.getElementById('devFloor').value, zone: document.getElementById('devZone').value }).then(() => alert("저장됨"));
+        
+        // [변경 6] 저장/수정 시 marking 항목을 대문자로 자동 변환하여 같이 파이어베이스에 업데이트
+        window.addDev = () => update(ref(db, `devices/${document.getElementById('devId').value}`), { 
+            name: document.getElementById('devName').value, 
+            floor: document.getElementById('devFloor').value, 
+            zone: document.getElementById('devZone').value,
+            marking: document.getElementById('devMarking').value.toUpperCase()
+        }).then(() => alert("저장됨"));
+        
         window.deleteDev = () => confirm("삭제?") && remove(ref(db, `devices/${document.getElementById('devId').value}`));
+        
+        // [변경 7] 엑셀 다운로드 시 실시간 기기 메타데이터(마킹, 층) 정보를 매핑하여 완벽한 자산 관리 표 형태로 출력
         window.downloadExcel = async () => {
-            const snap = await get(ref(db, 'history')), rows = [["ID", "이름", "층", "구역", "온도", "습도", "시간"]];
-            if (snap.exists()) Object.entries(snap.val()).forEach(([id, logs]) => Object.values(logs).forEach(l => rows.push([id, l.name, l.floor, l.zone, l.temperature, l.humidity, l.time])));
-            XLSX.writeFile(XLSX.utils.book_new().appendChild(XLSX.utils.aoa_to_sheet(rows), "Data"), "무역센터점_리포트.xlsx");
+            const snap = await get(ref(db, 'history'));
+            const rows = [["기기 마킹", "기기 ID", "브랜드명", "설치 층", "구역", "온도", "습도", "기록 시간"]];
+            
+            if (snap.exists()) {
+                Object.entries(snap.val()).forEach(([id, logs]) => {
+                    const meta = sensorData[id] || {}; // 실시간 매칭 데이터 긁어오기
+                    Object.values(logs).forEach(l => {
+                        rows.push([
+                            meta.marking || '-', 
+                            id, 
+                            l.name || meta.name || '-', 
+                            meta.floor || '-', 
+                            l.zone || meta.zone || '-', 
+                            l.temperature, 
+                            l.humidity, 
+                            l.time
+                        ]);
+                    });
+                });
+            }
+            
+            // 안전하고 완벽하게 구동되는 표준 SheetJS 빌드 코드로 전면 최적화
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(wb, ws, "온도 관제 리포트");
+            XLSX.writeFile(wb, "무역센터점_통합온도관제_리포트.xlsx");
         };
     </script>
 </body>
