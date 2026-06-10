@@ -1,5 +1,7 @@
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
-const admin = require('firebase-admin');
+// [수정 핵심] 옛날 통짜 방식 대신, 최신 규격에 맞게 분리해서 안전하게 불러오기
+const { initializeApp, getApps, cert } = require('firebase-admin/app');
+const { getDatabase } = require('firebase-admin/database');
 
 // 1. 파이어베이스 설정
 const serviceAccount = {
@@ -15,14 +17,14 @@ const serviceAccount = {
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40temp-monitoring-8b172.iam.gserviceaccount.com"
 };
 
-// [수정 핵심] 에러를 유발하던 admin.apps.length 문법을 최신 안전 문법으로 변경
-if (!admin.apps || admin.apps.length === 0) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+// 최신식 중복 실행 방지 문법 적용
+if (getApps().length === 0) {
+  initializeApp({
+    credential: cert(serviceAccount),
     databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
   });
 }
-const db = admin.database();
+const db = getDatabase();
 
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
