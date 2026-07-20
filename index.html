@@ -38,14 +38,16 @@
         .map-title { padding: 12px; font-weight: 900; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 20; }
         .map-wrapper { position: relative; width: 100%; padding-top: 56.25%; background-size: cover; background-repeat: no-repeat; background-position: center; }
         
-        /* 기본 크기를 24px에서 18px로 한 번 더 대폭 축소 */
+        /* ===================================================
+           1. 기본 스타일 (PC/태블릿 기준: 기존 크기 유지)
+        =================================================== */
         .status-dot { 
             position: absolute; 
-            width: 18px; 
-            height: 18px; 
-            border: 1px solid white; /* 테두리도 얇게 변경 */
+            width: 34px;          /* PC에서는 보기 시원한 34px */
+            height: 34px; 
+            border: 2px solid white; 
             border-radius: 50%; 
-            box-shadow: 0 0 4px rgba(0, 0, 0, 0.2); 
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.3); 
             cursor: pointer; 
             transform: translate(-50%, -50%); 
             display: flex; 
@@ -53,23 +55,33 @@
             justify-content: center; 
             z-index: 10; 
         }
-        
-        /* 동그라미가 줄어든 만큼 글자 크기도 9px에서 7.5px로 축소 */
         .status-dot b { 
-            font-size: 7.5px; 
-            font-weight: 900;
+            font-size: 11px;      /* PC에서는 선명한 11px */
             color: white; 
             pointer-events: none; 
-            text-shadow: 1px 1px 1px rgba(0,0,0,0.8); /* 작은 글씨가 선명하게 보이도록 음영 강화 */
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.6); 
         }
-        
-        /* 드래그할 때 손가락에 가려지지 않게 비율 조정 */
         .status-dot.dragging { 
             opacity: 0.8; 
             scale: 1.3; 
             z-index: 100; 
             cursor: grabbing; 
             border-color: #ffeb3b; 
+        }
+        
+        /* ===================================================
+           2. 모바일 전용 스타일 (스마트폰 가로/세로 화면 기준)
+        =================================================== */
+        @media (max-width: 768px) {
+            .status-dot { 
+                width: 18px;      /* 모바일에서만 18px로 초정밀 축소 */
+                height: 18px; 
+                border-width: 1px; /* 테두리도 가늘게 변경 */
+            }
+            .status-dot b { 
+                font-size: 7.5px; /* 글자도 도면을 가리지 않게 축소 */
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+            }
         }
 
         #adminPanel { display: none; background: #fff; padding: 20px; border-radius: 15px; margin-bottom: 15px; border: 2px solid #333; }
