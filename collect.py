@@ -5,10 +5,10 @@ import hmac
 import hashlib
 
 # ==========================================
-# 1. 설정 정보 (성공했던 로직 그대로)
+# 1. 설정 정보 (정확하게 입력해주세요)
 # ==========================================
 ACCESS_ID = "rqyqdefgxpq8akws93xe"
-ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9"
+ACCESS_SECRET = "ba86766479ee4a08a9426e7fe7e620b9" 
 FIREBASE_URL = "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
 ENDPOINT = "https://openapi.tuyaus.com"
 DEVICE_ID = "eb0b4a165182f9fd92d7yb"
@@ -23,7 +23,7 @@ def collect():
 
     try:
         # ----------------------------------------------
-        # [테스트] 파이어베이스 연결 확인
+        # [테스트] 파이어베이스 연결 확인 (시간 갱신용)
         # ----------------------------------------------
         requests.patch(f"{FIREBASE_URL}/debug.json", json={"at": now_kst, "status": "Running..."})
 
