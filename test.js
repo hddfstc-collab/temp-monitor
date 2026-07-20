@@ -36,55 +36,86 @@ async function collect() {
   const now = new Date();
   const timestamp = Date.now();
   const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-  const deviceId = "eb0b4a165182f9fd92d7yb"; 
 
   try {
-    const res = await context.request({
-      path: `/v1.0/devices/${deviceId}/status`,
-      method: 'GET',
-    });
+    // ✅ 1. 파이어베이스에서 웹(관리자 모드)을 통해 등록된 전체 기기 목록을 불러옵니다.
+    const devicesSnapshot = await db.ref('devices').once('value');
+    const devicesData = devicesSnapshot.val() || {};
+    const deviceIds = Object.keys(devicesData);
 
-    if (res.success) {
-      let temp = 0, humi = 0, battery = 0;
+    if (deviceIds.length === 0) {
+      console.log("등록된 기기가 없습니다. 웹 대시보드 관리자 모드에서 기기를 먼저 추가해주세요.");
+      await db.ref('debug').update({ last_success: kstTime, status: "NO_DEVICES" });
+      process.exit(0);
+    }
 
-      res.result.forEach(item => {
-        if (item.code === 'va_temperature' || item.code === 'temp_current') {
-          temp = item.value > 100 ? item.value / 10 : item.value;
-        }
-        if (item.code === 'va_humidity' || item.code === 'humidity_value') {
-          humi = item.value;
-        }
-        if (item.code === 'battery_percentage' || item.code === 'battery') {
-          battery = item.value;
-        }
-      });
+    let hasError = false;
 
-      // 기존 데이터 형식 그대로 history 누적
-      await db.ref(`history/${deviceId}/${timestamp}`).set({
-        battery: battery || 36, 
-        humidity: humi,
-        name: "SK2",
-        temperature: temp,
-        time: kstTime,
-        zone: "1구역"
-      });
-
-      // 실시간 기기 정보 업데이트
-      await db.ref(`devices/${deviceId}`).update({
-        temperature: temp,
-        humidity: humi,
-        battery: battery || 36,
-        lastUpdated: kstTime
-      });
+    // ✅ 2. 등록된 기기 개수만큼 반복하며 Tuya API를 통해 온도를 조회합니다.
+    for (const deviceId of deviceIds) {
+      const deviceInfo = devicesData[deviceId];
       
-      await db.ref('debug').update({ last_success: kstTime, status: "OK", temp: temp });
+      try {
+        const res = await context.request({
+          path: `/v1.0/devices/${deviceId}/status`,
+          method: 'GET',
+        });
+
+        if (res.success) {
+          let temp = 0, humi = 0, battery = 0;
+
+          res.result.forEach(item => {
+            if (item.code === 'va_temperature' || item.code === 'temp_current') {
+              temp = item.value > 100 ? item.value / 10 : item.value;
+            }
+            if (item.code === 'va_humidity' || item.code === 'humidity_value') {
+              humi = item.value;
+            }
+            if (item.code === 'battery_percentage' || item.code === 'battery') {
+              battery = item.value;
+            }
+          });
+
+          // ✅ 3. 히스토리 누적 시, 파이어베이스에 저장되어 있던 기기 정보(이름, 구역)를 함께 기록합니다.
+          await db.ref(`history/${deviceId}/${timestamp}`).set({
+            battery: battery || deviceInfo.battery || 36, 
+            humidity: humi,
+            name: deviceInfo.name || "Unknown",
+            temperature: temp,
+            time: kstTime,
+            zone: deviceInfo.zone || "미지정"
+          });
+
+          // ✅ 4. 실시간 센서값 업데이트 (웹에서 등록한 메타데이터는 덮어쓰지 않고 센서값만 갱신)
+          await db.ref(`devices/${deviceId}`).update({
+            temperature: temp,
+            humidity: humi,
+            battery: battery || deviceInfo.battery || 36,
+            lastUpdated: kstTime
+          });
+          
+          console.log(`[Success] ${deviceInfo.name || 'Unknown'} (${deviceId}) - Temp: ${temp}`);
+        } else {
+          console.error(`[Tuya Error] ${deviceInfo.name || 'Unknown'} (${deviceId}): ${res.msg}`);
+          hasError = true;
+        }
+      } catch (e) {
+        console.error(`[Crash] ${deviceInfo.name || 'Unknown'} (${deviceId}): ${e.message}`);
+        hasError = true;
+      }
+    }
+
+    // ✅ 5. 전체 순회 완료 후 디버그 상태 저장
+    if (!hasError) {
+      await db.ref('debug').update({ last_success: kstTime, status: "ALL_OK" });
       process.exit(0);
     } else {
-      await db.ref('debug').update({ last_fail: kstTime, status: "TUYA_FAIL", reason: res.msg });
+      await db.ref('debug').update({ last_fail: kstTime, status: "PARTIAL_OR_FULL_FAIL" });
       process.exit(1);
     }
+
   } catch (e) {
-    await db.ref('debug').update({ last_fail: kstTime, status: "CRASH", error: e.message });
+    await db.ref('debug').update({ last_fail: kstTime, status: "FIREBASE_READ_CRASH", error: e.message });
     process.exit(1);
   }
 }
