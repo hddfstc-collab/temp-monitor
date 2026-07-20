@@ -37,7 +37,7 @@ async function collect() {
   const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
   try {
-    // 💡 변경 포인트 1: 파이어베이스에 등록된 기기 리스트를 통째로 읽어옵니다.
+    // 파이어베이스에서 대리님이 관리자 모드로 등록해둔 기기 리스트만 쏙 가져옵니다.
     const devicesSnapshot = await db.ref('devices').once('value');
     const devicesData = devicesSnapshot.val();
 
@@ -46,15 +46,23 @@ async function collect() {
       process.exit(0);
     }
 
-    const deviceIds = Object.keys(devicesData);
-    console.log(`📡 총 ${deviceIds.length}개의 기기 수집을 시작합니다.`);
+    const keys = Object.keys(devicesData);
+    console.log(`📡 총 ${keys.length}개의 등록 기기 슬롯을 확인합니다.`);
 
-    // 💡 변경 포인트 2: 반복문을 돌며 기기별로 투야 서버에 온도를 물어봅니다.
-    for (const deviceId of deviceIds) {
+    for (const key of keys) {
       try {
-        const currentDevice = devicesData[deviceId];
+        const currentDevice = devicesData[key];
+        
+        // 폴더명이 마커(A, B..)든 진짜 ID든 내부에 적힌 진짜 투야 ID(id 또는 deviceId)를 유연하게 추출
+        const deviceId = currentDevice.id || currentDevice.deviceId || key;
         const deviceName = currentDevice.name || "미지정 온도계";
-        const deviceZone = currentDevice.zone || "미지정 구역";
+        const deviceZone = currentDevice.zone || "1구역";
+
+        // 알파벳 마킹 글자가 투야 API로 잘못 튀는 것을 방지
+        if (!deviceId || deviceId.length < 10) {
+          console.log(`⚠️ 유효한 투야 ID 형식이 아닙니다. 패스합니다. (값: ${deviceId})`);
+          continue;
+        }
 
         const res = await context.request({
           path: `/v1.0/devices/${deviceId}/status`,
@@ -76,7 +84,7 @@ async function collect() {
             }
           });
 
-          // history 누적 저장
+          // history 데이터 누적 (조회용 ID 기준)
           await db.ref(`history/${deviceId}/${timestamp}`).set({
             battery: battery || 36, 
             humidity: humi,
@@ -86,8 +94,8 @@ async function collect() {
             zone: deviceZone
           });
 
-          // 실시간 기기 정보 업데이트
-          await db.ref(`devices/${deviceId}`).update({
+          // 실시간 기기 정보 업데이트 (대시보드가 바라보는 원래 위치(key)에 정확히 대입)
+          await db.ref(`devices/${key}`).update({
             temperature: temp,
             humidity: humi,
             battery: battery || 36,
@@ -96,25 +104,23 @@ async function collect() {
 
           console.log(`✅ [${deviceName}] 수집 완료: ${temp}°C / ${humi}%`);
         } else {
-          // 개별 기기 실패 시 로그 출력 및 파이어베이스 기록
-          console.error(`❌ [${deviceId}] 투야 API 조회 실패:`, res.msg);
-          await db.ref('debug').update({ last_fail: kstTime, status: "TUYA_FAIL", reason: `ID: ${deviceId} - ${res.msg}` });
+          console.error(`❌ [${deviceName}] 투야 API 조회 실패:`, res.msg);
         }
       } catch (deviceError) {
-        console.error(`🔥 [${deviceId}] 통신 에러 발생:`, deviceError.message);
+        console.error(`🔥 [${key}] 처리 중 에러 발생:`, deviceError.message);
       }
     }
 
-    // 모든 기기 순회가 끝나면 최종 성공 처리 후 종료
+    // 모든 기기 체크가 끝나면 정상 종료
     await db.ref('debug').update({ last_success: kstTime, status: "OK" });
     process.exit(0);
 
   } catch (e) {
-    // 💡 변경 포인트 3: 에러 발생 시 깃허브 콘솔창에 상세 이유가 찍히도록 보완
     console.error("🔥 전체 프로세스 크래시 원인:", e);
     await db.ref('debug').update({ last_fail: kstTime, status: "CRASH", error: e.message });
     process.exit(1);
   }
 }
 
+// 수집 실행
 collect();
