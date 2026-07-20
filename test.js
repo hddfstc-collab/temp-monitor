@@ -1,3 +1,4 @@
+
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 // 최신 규격에 맞게 분리하여 안전하게 불러오기 (버전 크래시 방지)
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
@@ -37,7 +38,6 @@ async function collect() {
   const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
   try {
-    // 파이어베이스에서 대리님이 관리자 모드로 등록해둔 기기 리스트만 쏙 가져옵니다.
     const devicesSnapshot = await db.ref('devices').once('value');
     const devicesData = devicesSnapshot.val();
 
@@ -47,21 +47,19 @@ async function collect() {
     }
 
     const keys = Object.keys(devicesData);
-    console.log(`📡 총 ${keys.length}개의 등록 기기 슬롯을 확인합니다.`);
+    console.log(`📡 총 ${keys.length}개의 등록 기기를 초고속 대량 조회합니다.`);
 
-    for (const key of keys) {
+    // 💡 변경 포인트: 모든 기기의 투야 조회를 배열로 묶어 동시에 실행(병렬 처리)시킵니다.
+    const promises = keys.map(async (key) => {
       try {
         const currentDevice = devicesData[key];
-        
-        // 폴더명이 마커(A, B..)든 진짜 ID든 내부에 적힌 진짜 투야 ID(id 또는 deviceId)를 유연하게 추출
         const deviceId = currentDevice.id || currentDevice.deviceId || key;
         const deviceName = currentDevice.name || "미지정 온도계";
         const deviceZone = currentDevice.zone || "1구역";
 
-        // 알파벳 마킹 글자가 투야 API로 잘못 튀는 것을 방지
         if (!deviceId || deviceId.length < 10) {
-          console.log(`⚠️ 유효한 투야 ID 형식이 아닙니다. 패스합니다. (값: ${deviceId})`);
-          continue;
+          console.log(`⚠️ 유효하지 않은 ID 형식 패스: ${deviceId}`);
+          return;
         }
 
         const res = await context.request({
@@ -84,7 +82,7 @@ async function collect() {
             }
           });
 
-          // history 데이터 누적 (조회용 ID 기준)
+          // 역사 데이터 누적 기록
           await db.ref(`history/${deviceId}/${timestamp}`).set({
             battery: battery || 36, 
             humidity: humi,
@@ -94,7 +92,7 @@ async function collect() {
             zone: deviceZone
           });
 
-          // 실시간 기기 정보 업데이트 (대시보드가 바라보는 원래 위치(key)에 정확히 대입)
+          // 실시간 기기 정보 대시보드 위치(key)에 업데이트
           await db.ref(`devices/${key}`).update({
             temperature: temp,
             humidity: humi,
@@ -102,25 +100,27 @@ async function collect() {
             lastUpdated: kstTime
           });
 
-          console.log(`✅ [${deviceName}] 수집 완료: ${temp}°C / ${humi}%`);
+          console.log(`✅ [${deviceName}] 수집 성공`);
         } else {
-          console.error(`❌ [${deviceName}] 투야 API 조회 실패:`, res.msg);
+          console.error(`❌ [${deviceName}] 투야 API 실패:`, res.msg);
         }
       } catch (deviceError) {
-        console.error(`🔥 [${key}] 처리 중 에러 발생:`, deviceError.message);
+        console.error(`🔥 [${key}] 개별 통신 에러:`, deviceError.message);
       }
-    }
+    });
 
-    // 모든 기기 체크가 끝나면 정상 종료
+    // 💡 모든 비동기 처리가 끝날 때까지 1~2초간 동시에 기다린 후 종료합니다.
+    await Promise.all(promises);
+
     await db.ref('debug').update({ last_success: kstTime, status: "OK" });
+    console.log("🎉 모든 등록 기기의 수집이 전광석화처럼 완료되었습니다!");
     process.exit(0);
 
   } catch (e) {
-    console.error("🔥 전체 프로세스 크래시 원인:", e);
+    console.error("🔥 전체 프로세스 크래시:", e);
     await db.ref('debug').update({ last_fail: kstTime, status: "CRASH", error: e.message });
     process.exit(1);
   }
 }
 
-// 수집 실행
 collect();
