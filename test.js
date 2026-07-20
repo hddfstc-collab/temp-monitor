@@ -38,20 +38,20 @@ async function collect() {
   const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
   try {
-    // ✅ 1. 파이어베이스에서 웹(관리자 모드)을 통해 등록된 전체 기기 목록을 불러옵니다.
+    // 1. 파이어베이스에서 대시보드를 통해 등록된 기기 목록 읽기
     const devicesSnapshot = await db.ref('devices').once('value');
     const devicesData = devicesSnapshot.val() || {};
     const deviceIds = Object.keys(devicesData);
 
     if (deviceIds.length === 0) {
-      console.log("등록된 기기가 없습니다. 웹 대시보드 관리자 모드에서 기기를 먼저 추가해주세요.");
+      console.log("등록된 기기가 없습니다.");
       await db.ref('debug').update({ last_success: kstTime, status: "NO_DEVICES" });
       process.exit(0);
     }
 
     let hasError = false;
 
-    // ✅ 2. 등록된 기기 개수만큼 반복하며 Tuya API를 통해 온도를 조회합니다.
+    // 2. 루프를 돌며 각 기기 상태 조회
     for (const deviceId of deviceIds) {
       const deviceInfo = devicesData[deviceId];
       
@@ -71,14 +71,15 @@ async function collect() {
             if (item.code === 'va_humidity' || item.code === 'humidity_value') {
               humi = item.value;
             }
-            if (item.code === 'battery_percentage' || item.code === 'battery') {
+            // ✅ 차단기 타입 기기의 battery_state 조건식 추가 반영
+            if (item.code === 'battery_percentage' || item.code === 'battery' || item.code === 'battery_state') {
               battery = item.value;
             }
           });
 
-          // ✅ 3. 히스토리 누적 시, 파이어베이스에 저장되어 있던 기기 정보(이름, 구역)를 함께 기록합니다.
+          // 3. History 데이터 누적 기록
           await db.ref(`history/${deviceId}/${timestamp}`).set({
-            battery: battery || deviceInfo.battery || 36, 
+            battery: battery || deviceInfo.battery || 0, 
             humidity: humi,
             name: deviceInfo.name || "Unknown",
             temperature: temp,
@@ -86,11 +87,11 @@ async function collect() {
             zone: deviceInfo.zone || "미지정"
           });
 
-          // ✅ 4. 실시간 센서값 업데이트 (웹에서 등록한 메타데이터는 덮어쓰지 않고 센서값만 갱신)
+          // 4. 실시간 개별 기기 정보 업데이트
           await db.ref(`devices/${deviceId}`).update({
             temperature: temp,
             humidity: humi,
-            battery: battery || deviceInfo.battery || 36,
+            battery: battery || deviceInfo.battery || 0,
             lastUpdated: kstTime
           });
           
@@ -105,13 +106,15 @@ async function collect() {
       }
     }
 
-    // ✅ 5. 전체 순회 완료 후 디버그 상태 저장
+    // 5. 전체 순회 완료 후 디버그 로그 및 안정적 프로세스 종료 처리
     if (!hasError) {
       await db.ref('debug').update({ last_success: kstTime, status: "ALL_OK" });
       process.exit(0);
     } else {
-      await db.ref('debug').update({ last_fail: kstTime, status: "PARTIAL_OR_FULL_FAIL" });
-      process.exit(1);
+      // 에러가 있는 기기가 섞여 있어도 정상 기기 저장을 유지하며 Actions 블로킹 방지
+      await db.ref('debug').update({ last_fail: kstTime, status: "PARTIAL_FAIL_BUT_CONTINUED" });
+      console.warn("⚠️ 일부 기기 조회 실패가 발견되었으나 수집 스크립트 처리는 완료되었습니다.");
+      process.exit(0); 
     }
 
   } catch (e) {
