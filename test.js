@@ -1,45 +1,24 @@
-const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
-const { initializeApp, getApps, cert } = require('firebase-admin/app');
-const { getDatabase } = require('firebase-admin/database');
+const admin = require("firebase-admin");
 
-const serviceAccount = { /* 기존 설정 내용 유지 */ };
+// 서비스 계정 키를 환경 변수로 처리하거나 경로 설정
+const serviceAccount = require("./serviceAccountKey.json");
 
-if (getApps().length === 0) {
-  initializeApp({
-    credential: cert(serviceAccount),
-    databaseURL: "https://temp-monitoring-8b172-default-rtdb.asia-southeast1.firebasedatabase.app"
-  });
-}
-const db = getDatabase();
-const context = new TuyaContext({
-  baseUrl: 'https://openapi.tuyaus.com',
-  accessKey: 'rqyqdefgxpq8akws93xe',
-  secretKey: 'ba86766479ee4a08a9426e7fe7e620b9',
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: process.env.FIREBASE_DB_URL
 });
 
-async function collect() {
-  const now = new Date();
-  const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-  
+const db = admin.database();
+
+async function testConnection() {
   try {
     const snapshot = await db.ref('devices').once('value');
-    const devices = snapshot.val(); // 여기서 웹 관리자 모드의 기기들 싹 가져옴
-    if (!devices) process.exit(0);
-
-    for (const deviceId in devices) {
-      try {
-        const res = await context.request({ path: `/v1.0/devices/${deviceId}/status`, method: 'GET' });
-        if (res.success) {
-          let temp = 0, humi = 0;
-          res.result.forEach(item => {
-            if (['va_temperature', 'temp_current'].includes(item.code)) temp = item.value > 100 ? item.value / 10 : item.value;
-            if (['va_humidity', 'humidity_value'].includes(item.code)) humi = item.value;
-          });
-          await db.ref(`devices/${deviceId}`).update({ temperature: temp, humidity: humi, lastUpdated: kstTime });
-        }
-      } catch (e) { console.log(`${deviceId} 오류: ${e.message}`); }
-    }
-  } catch (e) { console.error(e); }
-  process.exit(0);
+    const data = snapshot.val();
+    console.log("데이터 읽기 성공:", data);
+  } catch (error) {
+    console.error("데이터 읽기 실패:", error);
+    process.exit(1);
+  }
 }
-collect();
+
+testConnection();
