@@ -2,18 +2,7 @@ const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
 
-const serviceAccount = {
-  "type": "service_account",
-  "project_id": "temp-monitoring-8b172",
-  "private_key_id": "b7e6a13406af0b2e9446a2ab8cbb493109813bfd",
-  "private_key": "-----BEGIN" + " PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCr6Z3Suri1Fo7D\nYiRYwCCpqGnZa6TqUWOFEjeU/X3Z8EHWNkRJ1Ss7AkMlp9kH6KXKVOX9vqoJF4Vm\n96YhnGlv5kB+JSXskjeJAFWhDL3maISmvm8auvKh+YSDnScFHLpvSRVgMSUYu3UX\ns4zVRLci3mZ4s0Hb0zDJJx9wBWfyMc+XfrmoMnSF4aZ+U9or4kTulr45N+fV2MtI\nCIBLrD5nsTU1SHtIrvg9PfJiuaRm9UvMY8DXvyZYHOBoqWPHvNvZFRoUkjLOU8jS\nASiyOTvFRqm8u8dY+SgtySdZK25cEouUK7tQFH24yUVZ/fBSfsHtWRNOpY0iaE3v\nRgv7jgnpAgMBAAECggEAEY3VU8NFQRiAk2reE0HrE+fihxT6zgJpixkFG+2WgD6M\nOndoGbHurCPa/2lYO/qBk1t/8J0bd7ozIQSArkXubkKwqzDX4oQ7r32dQMiwS2q4\nwN4JMk2MoQV9hoLxjRAV6W8pA52BEDl0B2uKIezWVnUnOYP0YaH7BU89Yo7qwkww\n0Q1rVAhvt+vTFtnmgnEsKc/wR4zJiZqJtZyNNWHrRHuCu4pNSc/lCUenakWVDpDD\n5cK9tq4vdQlt6hLIbn/Le2I7un+qiiVJufTBBw+jOevjTxDVmVGqfJg11hOOeAp/\neXCVyhTSAWWJcnvHjwGVQK9mXzjrHA8q452biOyekQKBgQDi16Un1zwpHO1Lrquj\n7rXP9ZmzGy3o5WeEz5T/AM7VBds6/xwEa3bAYq3u2y+ahnT38G5snrX7oG3CDcxp\nj0sCLNLS6gOQA4VrbQfbZSfRyWzamNlgC3R+GK6xikEzvdDeDGwM6p0G5Fmy54UD\NL0KRZO4KQebmP4K2ftQEkkWqwKBgQDCAnr9VS3ZjO5sw9Y36Lg3WFCqH4dGxDed\nEsKpKAKR/kR8nqVRN5u5al+iItCbFfzxhlHs4YNYzkwAsDiKKXC0D87vnJRCA+N8\nfHGdB+DR0uAwWNLFLH6NE1El2FlMsJTwP6y8hms4KRKUvd0TQ6lgp3CerkonNXlM\nT5Kva3txuwKBgFoHL9riB1Rh0KPKzQAgyzOfy8JTtSLLeQwyvnV+Qpg03M9LVDlE\n1TqBb3purzPqzR1h5NFjI+KbxzPO+iOi5SgV1g4zJfrQCvGZshaWzPjrsjIHm64M\nnc01yo9XyYzZdr3JvFBcBLopgpgIXrfpBGXBO2FJl2VfkOOJo74ho7RFAoGAPv+R\nMmwTbF5QGa9qA1OlZgtefi+ovLkAmhe6cDVWyFN5p8HYSsw02/uHvF1zwbhdH4yP\nU81S2mZ61YpjgbG9MCsl9jaxCdK7bvP17JjfTyMbu3dMUcyF94d7RT/Al5+LbYwv\nqjQ34s+rgfM5M4U4HfOhJVXRLHQ3xCjep+nN9vsCgYAHx65VJSJDz+58N1395GOy\nX18KYFRbFIQWRnF4955ozbXcQgMpxrLUZw7b2Qgi9wujpFQxsvyeYCKETkMXR6tY\nWUawlWN9u1NpLzmntz+0hEBxVfGtD+6iKqDDYQYpiH44Jk/L+tJuTFP0yfLe2QSo\nkLrXZ62F0Wiw7QPKvVmSNw==\n-----END" + " PRIVATE KEY-----\n",
-  "client_email": "firebase-adminsdk-fbsvc@temp-monitoring-8b172.iam.gserviceaccount.com",
-  "client_id": "104606797071904398095",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40temp-monitoring-8b172.iam.gserviceaccount.com"
-};
+const serviceAccount = { /* 기존 설정 내용 유지 */ };
 
 if (getApps().length === 0) {
   initializeApp({
@@ -22,7 +11,6 @@ if (getApps().length === 0) {
   });
 }
 const db = getDatabase();
-
 const context = new TuyaContext({
   baseUrl: 'https://openapi.tuyaus.com',
   accessKey: 'rqyqdefgxpq8akws93xe',
@@ -30,42 +18,28 @@ const context = new TuyaContext({
 });
 
 async function collect() {
-  const kstTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const now = new Date();
+  const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
   
   try {
-    // 💡 하드코딩 삭제: 프로젝트에 연결된 모든 기기를 자동으로 가져옵니다.
-    const devices = await context.request({
-      path: '/v1.0/users/me/devices',
-      method: 'GET',
-    });
+    const snapshot = await db.ref('devices').once('value');
+    const devices = snapshot.val(); // 여기서 웹 관리자 모드의 기기들 싹 가져옴
+    if (!devices) process.exit(0);
 
-    if (!devices.success || !devices.result) throw new Error("기기 목록을 불러올 수 없습니다.");
-
-    // 각 기기별로 상태를 조회합니다.
-    for (const dev of devices.result) {
-      const res = await context.request({
-        path: `/v1.0/devices/${dev.id}/status`,
-        method: 'GET',
-      });
-
-      if (res.success) {
-        let temp = 0, humi = 0, battery = 0;
-        res.result.forEach(item => {
-          if (['va_temperature', 'temp_current', 'temp_value', 'temperature'].includes(item.code)) temp = item.value > 100 ? item.value / 10 : item.value;
-          if (['va_humidity', 'humidity_value', 'humidity'].includes(item.code)) humi = item.value;
-          if (['battery_percentage', 'battery'].includes(item.code)) battery = item.value;
-        });
-
-        // 데이터 저장
-        await db.ref(`devices/${dev.id}`).update({ name: dev.name, temperature: temp, humidity: humi, battery: battery, lastUpdated: kstTime });
-        console.log(`성공: ${dev.name} (${dev.id}) 데이터 업데이트`);
-      }
+    for (const deviceId in devices) {
+      try {
+        const res = await context.request({ path: `/v1.0/devices/${deviceId}/status`, method: 'GET' });
+        if (res.success) {
+          let temp = 0, humi = 0;
+          res.result.forEach(item => {
+            if (['va_temperature', 'temp_current'].includes(item.code)) temp = item.value > 100 ? item.value / 10 : item.value;
+            if (['va_humidity', 'humidity_value'].includes(item.code)) humi = item.value;
+          });
+          await db.ref(`devices/${deviceId}`).update({ temperature: temp, humidity: humi, lastUpdated: kstTime });
+        }
+      } catch (e) { console.log(`${deviceId} 오류: ${e.message}`); }
     }
-    process.exit(0);
-  } catch (e) {
-    console.error("오류:", e.message);
-    process.exit(1);
-  }
+  } catch (e) { console.error(e); }
+  process.exit(0);
 }
-
 collect();
