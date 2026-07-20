@@ -82,4 +82,4 @@ def collect():
         requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": f"System Error: {str(e)}", "at": now_kst})
 
 if __name__ == "__main__":
-    collect()
+    collect() 
