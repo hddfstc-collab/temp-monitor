@@ -2,7 +2,6 @@ const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
 
-// 1. 파이어베이스 설정 (기존 마스터 키 그대로 원복)
 const serviceAccount = {
   "type": "service_account",
   "project_id": "temp-monitoring-8b172",
@@ -31,60 +30,40 @@ const context = new TuyaContext({
 });
 
 async function collect() {
-  const now = new Date();
-  const timestamp = Date.now();
-  const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-  const deviceId = "eb0b4a165182f9fd92d7yb"; 
-
+  const kstTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  
   try {
-    const res = await context.request({
-      path: `/v1.0/devices/${deviceId}/status`,
+    // 💡 하드코딩 삭제: 프로젝트에 연결된 모든 기기를 자동으로 가져옵니다.
+    const devices = await context.request({
+      path: '/v1.0/users/me/devices',
       method: 'GET',
     });
 
-    if (res.success) {
-      let temp = 0, humi = 0, battery = 0;
+    if (!devices.success || !devices.result) throw new Error("기기 목록을 불러올 수 없습니다.");
 
-      // 💡 데이터 이름(code)이 무엇이든 다 잡아낼 수 있게 후보군 확장
-      res.result.forEach(item => {
-        const code = item.code;
-        const val = item.value;
-
-        if (['va_temperature', 'temp_current', 'temp_value', 'temperature', 'ch1_temp'].includes(code)) {
-          temp = val > 100 ? val / 10 : val;
-        }
-        if (['va_humidity', 'humidity_value', 'humidity'].includes(code)) {
-          humi = val;
-        }
-        if (['battery_percentage', 'battery', 'residual_electricity'].includes(code)) {
-          battery = val;
-        }
+    // 각 기기별로 상태를 조회합니다.
+    for (const dev of devices.result) {
+      const res = await context.request({
+        path: `/v1.0/devices/${dev.id}/status`,
+        method: 'GET',
       });
 
-      await db.ref(`history/${deviceId}/${timestamp}`).set({
-        battery: battery || 36, 
-        humidity: humi,
-        name: "SK2",
-        temperature: temp,
-        time: kstTime,
-        zone: "1구역"
-      });
+      if (res.success) {
+        let temp = 0, humi = 0, battery = 0;
+        res.result.forEach(item => {
+          if (['va_temperature', 'temp_current', 'temp_value', 'temperature'].includes(item.code)) temp = item.value > 100 ? item.value / 10 : item.value;
+          if (['va_humidity', 'humidity_value', 'humidity'].includes(item.code)) humi = item.value;
+          if (['battery_percentage', 'battery'].includes(item.code)) battery = item.value;
+        });
 
-      await db.ref(`devices/${deviceId}`).update({
-        temperature: temp,
-        humidity: humi,
-        battery: battery || 36,
-        lastUpdated: kstTime
-      });
-      
-      await db.ref('debug').update({ last_success: kstTime, status: "OK", temp: temp });
-      process.exit(0);
-    } else {
-      await db.ref('debug').update({ last_fail: kstTime, status: "TUYA_FAIL", reason: res.msg });
-      process.exit(1);
+        // 데이터 저장
+        await db.ref(`devices/${dev.id}`).update({ name: dev.name, temperature: temp, humidity: humi, battery: battery, lastUpdated: kstTime });
+        console.log(`성공: ${dev.name} (${dev.id}) 데이터 업데이트`);
+      }
     }
+    process.exit(0);
   } catch (e) {
-    await db.ref('debug').update({ last_fail: kstTime, status: "CRASH", error: e.message });
+    console.error("오류:", e.message);
     process.exit(1);
   }
 }
