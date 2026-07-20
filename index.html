@@ -122,11 +122,9 @@
                     <button onclick="loadFilteredData()" style="padding:0 20px; background:#333; color:white; border-radius:10px; border:none; font-weight:bold;">조회</button>
                 </div>
                 <div class="period-btns">
-                    <button onclick="setPeriod(0)">오늘</button>
+                    <button onclick="setPeriod(0)" style="font-weight:bold; color:var(--danger);">오늘</button>
                     <button onclick="setPeriod(7)">1주일</button>
                     <button onclick="setPeriod(30)">1개월</button>
-                    <button onclick="setPeriod(90)">3개월</button>
-                    <button onclick="setPeriod(365)">1년</button>
                 </div>
                 <div class="toggle-container" style="margin-top: 10px; display: flex; justify-content: flex-end;">
                     <button id="togglePeriodBtn" onclick="toggleChartPeriod()" style="padding: 8px 16px; font-weight: bold; cursor: pointer; border-radius: 8px; border: 1px solid #ddd; background-color: #fff; transition: all 0.2s;">
