@@ -79,7 +79,10 @@ def collect():
             requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": f"Data Error: {data_res.get('msg')}", "at": now_kst})
 
     except Exception as e:
-        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": f"System Error: {str(e)}", "at": now_kst})
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"상세 에러 로그: {error_detail}") # 이 로그를 보고 싶습니다.
+        requests.patch(f"{FIREBASE_URL}/debug.json", json={"error": str(e), "at": now_kst})
 
 if __name__ == "__main__":
     collect()
