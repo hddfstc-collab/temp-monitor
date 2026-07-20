@@ -38,9 +38,12 @@
         .map-title { padding: 12px; font-weight: 900; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 20; }
         .map-wrapper { position: relative; width: 100%; padding-top: 56.25%; background-size: cover; background-repeat: no-repeat; background-position: center; }
         
-        .status-dot { position: absolute; width: 34px; height: 34px; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .status-dot b { font-size: 11px; color: white; pointer-events: none; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-        .status-dot.dragging { opacity: 0.8; scale: 1.5; z-index: 100; cursor: grabbing; border-color: #ffeb3b; }
+        /* ✅ 모바일 가독성을 위해 동그라미 크기 대폭 축소 (34px -> 24px) */
+        .status-dot { position: absolute; width: 24px; height: 24px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 6px rgba(0, 0, 0, 0.3); cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; z-index: 10; }
+        /* ✅ 내부 온도 글자 크기 축소 (11px -> 9px) */
+        .status-dot b { font-size: 9px; color: white; pointer-events: none; text-shadow: 1px 1px 1px rgba(0,0,0,0.6); }
+        /* ✅ 드래그 시 너무 비대해지지 않도록 스케일 조정 (1.5 -> 1.2) */
+        .status-dot.dragging { opacity: 0.8; scale: 1.2; z-index: 100; cursor: grabbing; border-color: #ffeb3b; }
 
         #adminPanel { display: none; background: #fff; padding: 20px; border-radius: 15px; margin-bottom: 15px; border: 2px solid #333; }
         .admin-btns { display: flex; gap: 8px; margin-top: 10px; }
@@ -159,7 +162,6 @@
             const g8 = document.getElementById('grid-8f'), g9 = document.getElementById('grid-9f');
             g8.innerHTML = ''; g9.innerHTML = '';
             
-            // [변경 2] 알파벳 마킹 기준으로 정렬하여 리스트 출력 (A, B, C... 순 정렬)
             const sortedDevices = Object.entries(sensorData).sort((a, b) => {
                 const markA = a[1].marking || 'ZZZ';
                 const markB = b[1].marking || 'ZZZ';
@@ -170,7 +172,6 @@
                 const card = document.createElement('div');
                 card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
                 
-                // [변경 3] 카드 클릭 시 마킹 인풋창에도 데이터 연동되게 수정
                 card.onclick = () => isAdmin ? (
                     document.getElementById('devId').value = id, 
                     document.getElementById('devName').value = info.name,
@@ -179,16 +180,27 @@
                     document.getElementById('devMarking').value = info.marking || ''
                 ) : window.openModal(id, info.name);
                 
-                const battColor = (info.battery || 0) < 20 ? 'red' : '#666';
+                // ✅ 차단기 타입 기기의 배터리 상태 대응 로직 (문자열 대응 처리)
+                let battDisplay = "🔋 " + (info.battery || 0) + "%";
+                let battColor = "#666";
+
+                if (typeof info.battery === 'string') {
+                    const bState = info.battery.toLowerCase();
+                    if (bState === 'high') { battDisplay = "🔋 High"; battColor = "var(--safe)"; }
+                    else if (bState === 'medium' || bState === 'middle') { battDisplay = "🪫 Mid"; battColor = "#666"; }
+                    else if (bState === 'low') { battDisplay = "🪫 Low"; battColor = "var(--danger)"; }
+                } else {
+                    if ((info.battery || 0) < 20) battColor = "var(--danger)";
+                }
                 
-                // [변경 4] 웹 대시보드 카드 디자인에 알파벳 마킹 [A] 표시되도록 바인딩
                 card.innerHTML = `
                     <span class="zone-label">${info.zone}</span>
                     <div class="brand-label">${info.marking ? `[${info.marking}] ` : ''}${info.name}</div>
                     <div style="display:flex; justify-content:space-between; align-items:flex-end;">
                         <div class="temp-main">${info.temperature || 0}°</div>
                         <div style="font-size:11px; color:#666; font-weight:600; text-align:right;">
-                            <div>💧 ${info.humidity || 0}%</div><div style="color:${battColor}">🔋 ${info.battery || 0}%</div>
+                            <div>💧 ${info.humidity || 0}%</div>
+                            <div style="color:${battColor}; font-weight:bold;">${battDisplay}</div>
                         </div>
                     </div>`;
                 (info.floor === '9층' ? g9 : g8).appendChild(card);
@@ -208,7 +220,6 @@
                 const t = parseFloat(info.temperature || 0);
                 dot.style.backgroundColor = t > 26 ? 'var(--danger)' : (t < 23 ? 'var(--cold)' : 'var(--safe)');
                 
-                // [변경 5] 지도 뷰 마우스 오버 시 마킹과 브랜드명이 직관적으로 나타나도록 타이틀 추가
                 dot.title = `${info.marking ? `[${info.marking}] ` : ''}${info.name}`;
                 dot.innerHTML = `<b>${t}</b>`;
                 const box = info.floor === '9층' ? b9 : b8;
@@ -219,6 +230,7 @@
         };
 
         function startDrag(e, id, el, parent) {
+            el.classList.add('dragging'); // ✅ 터치/드래그 시작 시 피드백 클래스 즉시 추가
             const rect = parent.getBoundingClientRect();
             const move = (me) => {
                 me.preventDefault();
@@ -229,6 +241,7 @@
                 window.lastXY = { id, x: Math.round(px * 12.8), y: Math.round(py * 7.2) };
             };
             const stop = () => {
+                el.classList.remove('dragging'); // ✅ 드래그 해제 시 복원
                 document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
                 document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
                 if (window.lastXY) update(ref(db, `devices/${window.lastXY.id}`), { mapX: window.lastXY.x, mapY: window.lastXY.y });
@@ -378,7 +391,6 @@
 
         window.closeModal = () => document.getElementById('modal').style.display = 'none';
         
-        // [변경 6] 저장/수정 시 marking 항목을 대문자로 자동 변환하여 같이 파이어베이스에 업데이트
         window.addDev = () => update(ref(db, `devices/${document.getElementById('devId').value}`), { 
             name: document.getElementById('devName').value, 
             floor: document.getElementById('devFloor').value, 
@@ -388,14 +400,13 @@
         
         window.deleteDev = () => confirm("삭제?") && remove(ref(db, `devices/${document.getElementById('devId').value}`));
         
-        // [변경 7] 엑셀 다운로드 시 실시간 기기 메타데이터(마킹, 층) 정보를 매핑하여 완벽한 자산 관리 표 형태로 출력
         window.downloadExcel = async () => {
             const snap = await get(ref(db, 'history'));
             const rows = [["기기 마킹", "기기 ID", "브랜드명", "설치 층", "구역", "온도", "습도", "기록 시간"]];
             
             if (snap.exists()) {
                 Object.entries(snap.val()).forEach(([id, logs]) => {
-                    const meta = sensorData[id] || {}; // 실시간 매칭 데이터 긁어오기
+                    const meta = sensorData[id] || {};
                     Object.values(logs).forEach(l => {
                         rows.push([
                             meta.marking || '-', 
@@ -411,7 +422,6 @@
                 });
             }
             
-            // 안전하고 완벽하게 구동되는 표준 SheetJS 빌드 코드로 전면 최적화
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(rows);
             XLSX.utils.book_append_sheet(wb, ws, "온도 관제 리포트");
