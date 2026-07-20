@@ -1,10 +1,8 @@
-
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
-// 최신 규격에 맞게 분리하여 안전하게 불러오기 (버전 크래시 방지)
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
 
-// 1. 파이어베이스 설정 (기존 마스터 키 그대로 유지)
+// 1. 파이어베이스 설정
 const serviceAccount = {
   "type": "service_account",
   "project_id": "temp-monitoring-8b172",
@@ -47,20 +45,16 @@ async function collect() {
     }
 
     const keys = Object.keys(devicesData);
-    console.log(`📡 총 ${keys.length}개의 등록 기기를 초고속 대량 조회합니다.`);
+    console.log(`📡 총 ${keys.length}개의 등록 기기를 순차적으로 수집합니다.`);
 
-    // 💡 변경 포인트: 모든 기기의 투야 조회를 배열로 묶어 동시에 실행(병렬 처리)시킵니다.
-    const promises = keys.map(async (key) => {
+    for (const key of keys) {
       try {
         const currentDevice = devicesData[key];
         const deviceId = currentDevice.id || currentDevice.deviceId || key;
         const deviceName = currentDevice.name || "미지정 온도계";
         const deviceZone = currentDevice.zone || "1구역";
 
-        if (!deviceId || deviceId.length < 10) {
-          console.log(`⚠️ 유효하지 않은 ID 형식 패스: ${deviceId}`);
-          return;
-        }
+        if (!deviceId || deviceId.length < 10) continue;
 
         const res = await context.request({
           path: `/v1.0/devices/${deviceId}/status`,
@@ -69,56 +63,30 @@ async function collect() {
 
         if (res.success) {
           let temp = 0, humi = 0, battery = 0;
-
           res.result.forEach(item => {
-            if (item.code === 'va_temperature' || item.code === 'temp_current') {
-              temp = item.value > 100 ? item.value / 10 : item.value;
-            }
-            if (item.code === 'va_humidity' || item.code === 'humidity_value') {
-              humi = item.value;
-            }
-            if (item.code === 'battery_percentage' || item.code === 'battery') {
-              battery = item.value;
-            }
+            if (item.code === 'va_temperature' || item.code === 'temp_current') temp = item.value > 100 ? item.value / 10 : item.value;
+            if (item.code === 'va_humidity' || item.code === 'humidity_value') humi = item.value;
+            if (item.code === 'battery_percentage' || item.code === 'battery') battery = item.value;
           });
 
-          // 역사 데이터 누적 기록
-          await db.ref(`history/${deviceId}/${timestamp}`).set({
-            battery: battery || 36, 
-            humidity: humi,
-            name: deviceName,
-            temperature: temp,
-            time: kstTime,
-            zone: deviceZone
-          });
-
-          // 실시간 기기 정보 대시보드 위치(key)에 업데이트
-          await db.ref(`devices/${key}`).update({
-            temperature: temp,
-            humidity: humi,
-            battery: battery || 36,
-            lastUpdated: kstTime
-          });
-
-          console.log(`✅ [${deviceName}] 수집 성공`);
-        } else {
-          console.error(`❌ [${deviceName}] 투야 API 실패:`, res.msg);
+          await db.ref(`history/${deviceId}/${timestamp}`).set({ battery, humidity: humi, name: deviceName, temperature: temp, time: kstTime, zone: deviceZone });
+          await db.ref(`devices/${key}`).update({ temperature: temp, humidity: humi, battery, lastUpdated: kstTime });
+          
+          console.log(`✅ [${deviceName}] 수집 완료`);
         }
-      } catch (deviceError) {
-        console.error(`🔥 [${key}] 개별 통신 에러:`, deviceError.message);
-      }
-    });
+        
+        // 0.5초 대기 (투야 서버 배려 모드)
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-    // 💡 모든 비동기 처리가 끝날 때까지 1~2초간 동시에 기다린 후 종료합니다.
-    await Promise.all(promises);
+      } catch (deviceError) {
+        console.error(`🔥 [${key}] 에러 발생:`, deviceError.message);
+      }
+    }
 
     await db.ref('debug').update({ last_success: kstTime, status: "OK" });
-    console.log("🎉 모든 등록 기기의 수집이 전광석화처럼 완료되었습니다!");
     process.exit(0);
-
   } catch (e) {
-    console.error("🔥 전체 프로세스 크래시:", e);
-    await db.ref('debug').update({ last_fail: kstTime, status: "CRASH", error: e.message });
+    console.error("🔥 크래시:", e);
     process.exit(1);
   }
 }
