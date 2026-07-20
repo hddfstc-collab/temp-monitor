@@ -310,28 +310,31 @@
             window.setPeriod(0); 
         };
 
-        wwindow.setPeriod = (days) => {
+        window.setPeriod = (days) => {
             const end = new Date();
             const start = new Date();
             
             if (days === 0) { 
-                // 💡 기존 로직을 보완하여 오늘 날짜의 00시 00분 00초로 고정 (당일만 조회)
+                // 오늘 당일 조회
                 start.setHours(0, 0, 0, 0); 
             } else {
-                // 1주일, 1개월 등은 기존대로 이전 날짜로 계산
+                // 1주일, 1개월 등 이전 날짜 계산
                 start.setDate(end.getDate() - days);
-                start.setHours(0, 0, 0, 0); // 시작일 자정부터
+                start.setHours(0, 0, 0, 0);
             }
             
-            // input type="date" 형식에 맞게 로컬 시간 기준으로 YYYY-MM-DD 파싱
-            const formatDate = (date) => {
-                const offset = date.getTimezoneOffset() * 60000;
-                const localISOTime = new Date(date.getTime() - offset).toISOString();
-                return localISOTime.split('T')[0];
+            // 💡 시차 오류 없이 로컬 시간(한국 표준시) 기준으로 YYYY-MM-DD 포맷팅하는 가장 안전한 방법
+            const kstFormat = (date) => {
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
             };
         
-            document.getElementById('startDate').value = formatDate(start);
-            document.getElementById('endDate').value = formatDate(end);
+            document.getElementById('startDate').value = kstFormat(start);
+            document.getElementById('endDate').value = kstFormat(end);
+            
+            // 날짜 매핑 후 즉시 데이터 조회 실행
             window.loadFilteredData();
         };
 
