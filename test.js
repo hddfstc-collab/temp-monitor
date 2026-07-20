@@ -1,4 +1,3 @@
-
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
@@ -39,7 +38,7 @@ const serviceAccount = {
   "type": "service_account",
   "project_id": "temp-monitoring-8b172",
   "private_key_id": "b7e6a13406af0b2e9446a2ab8cbb493109813bfd",
-  "private_key": keyHeader + rawKey + "\n" + keyFooter, // 프로그램 실행 시 내부에서 합체됩니다.
+  "private_key": keyHeader + rawKey + "\n" + keyFooter, // 프로그램 실행 시 내부에서 안전하게 결합됩니다.
   "client_email": "firebase-adminsdk-fbsvc@temp-monitoring-8b172-default-rtdb.iam.gserviceaccount.com",
   "client_id": "104606797071904398095",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -62,6 +61,7 @@ const context = new TuyaContext({
   secretKey: 'ba86766479ee4a08a9426e7fe7e620b9',
 });
 
+// ⏱️ 특정 기기 무응답 시 시스템 정체를 막는 4초 타임아웃 안전핀
 function requestWithTimeout(promise, ms = 4000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Tuya API 4초 응답 타임아웃')), ms);
