@@ -129,8 +129,15 @@
             id="photoFile"
             accept="image/*"
             style="display:none;">
-    </div>
+    </div>  
 
+    <input
+        type="file"
+        id="photoFile"
+        accept="image/*"
+        capture="environment"
+        style="display:none;">
+    
     <div id="list-container">
         <div class="floor-section">
             <div class="floor-title" style="color:var(--9f); border-color:var(--9f);">9F</div>
@@ -521,7 +528,7 @@
             confirm("삭제?") &&
             remove(ref(db, `devices/${document.getElementById('devId').value}`));
         
-        window.openPhotoManager = () => {
+       window.openPhotoManager = () => {
         
             const devId = document.getElementById('devId').value;
         
@@ -533,28 +540,79 @@
             document.getElementById('photoFile').click();
         };
         
+        document.getElementById('photoFile')
+        .addEventListener('change', (e) => {
+        
+            const file = e.target.files[0];
+            if (!file) return;
+        
+            const devId = document.getElementById('devId').value;
+        
+            const img = new Image();
+            const reader = new FileReader();
+        
+            reader.onload = (event) => {
+        
+                img.onload = async () => {
+        
+                    const canvas = document.createElement('canvas');
+        
+                    let width = img.width;
+                    let height = img.height;
+        
+                    const maxWidth = 1280;
+        
+                    if (width > maxWidth) {
+                        height = height * (maxWidth / width);
+                        width = maxWidth;
+                    }
+        
+                    canvas.width = width;
+                    canvas.height = height;
+        
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+        
+                    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        
+                    await update(
+                        ref(db, `devices/${devId}`),
+                        {
+                            photo: compressed
+                        }
+                    );
+        
+                    alert('사진 저장 완료');
+                };
+        
+                img.src = event.target.result;
+            };
+        
+            reader.readAsDataURL(file);
+        });
+        
         window.downloadExcel = async () => {
             const snap = await get(ref(db, 'history'));
             const rows = [["기기 마킹", "기기 ID", "브랜드명", "설치 층", "구역", "온도", "습도", "기록 시간"]];
-            
+        
             if (snap.exists()) {
                 Object.entries(snap.val()).forEach(([id, logs]) => {
                     const meta = sensorData[id] || {};
                     Object.values(logs).forEach(l => {
                         rows.push([
-                            meta.marking || '-', 
-                            id, 
-                            l.name || meta.name || '-', 
-                            meta.floor || '-', 
-                            l.zone || meta.zone || '-', 
-                            l.temperature, 
-                            l.humidity, 
+                            meta.marking || '-',
+                            id,
+                            l.name || meta.name || '-',
+                            meta.floor || '-',
+                            l.zone || meta.zone || '-',
+                            l.temperature,
+                            l.humidity,
                             l.time
                         ]);
                     });
                 });
             }
-            
+        
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(rows);
             XLSX.utils.book_append_sheet(wb, ws, "온도 관제 리포트");
