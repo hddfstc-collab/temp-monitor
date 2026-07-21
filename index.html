@@ -113,7 +113,22 @@
             <button class="btn-add" onclick="addDev()">저장/수정</button>
             <button class="btn-del" onclick="deleteDev()">삭제</button>
         </div>
-        <button class="btn-excel" onclick="downloadExcel()">📊 전체 엑셀 추출</button>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn-excel" onclick="downloadExcel()" style="flex:1;">
+                📊 엑셀추출
+            </button>
+        
+            <button class="btn-excel"
+                    onclick="openPhotoManager()"
+                    style="flex:1;background:#2980b9;">
+                📷 사진관리
+            </button>
+        </div>
+        <input
+            type="file"
+            id="photoFile"
+            accept="image/*"
+            style="display:none;">
     </div>
 
     <div id="list-container">
@@ -502,7 +517,23 @@
             marking: document.getElementById('devMarking').value.toUpperCase()
         }).then(() => alert("저장됨"));
         
-        window.deleteDev = () => confirm("삭제?") && remove(ref(db, `devices/${document.getElementById('devId').value}`));
+        window.deleteDev = () =>
+            confirm("삭제?") &&
+            remove(ref(db, `devices/${document.getElementById('devId').value}`));
+        
+        window.openPhotoManager = () => {
+        
+            const devId = document.getElementById('devId').value;
+        
+            if (!devId) {
+                alert('온도계를 먼저 선택하세요');
+                return;
+            }
+        
+            document.getElementById('photoFile').click();
+        };
+        
+        window.downloadExcel = async () => {
         
         window.downloadExcel = async () => {
             const snap = await get(ref(db, 'history'));
