@@ -38,7 +38,7 @@
         .map-title { padding: 12px; font-weight: 900; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 20; }
         .map-wrapper { position: relative; width: 100%; padding-top: 56.25%; background-size: cover; background-repeat: no-repeat; background-position: center; }
         
-        /* ===================================================
+       /* ===================================================
            1. 기본 스타일 (PC/태블릿 기준: 기존 34px 큰 도트 유지)
         =================================================== */
         .status-dot {
@@ -56,13 +56,22 @@
             justify-content: center;
             z-index: 10;
         }
-
+        
+        .status-dot b {
+            color: white;
+        }
+        
         /* ===================================================
            2. 모바일 전용 스타일 (스마트폰 가로/세로 화면 18px 축소)
         =================================================== */
         @media (max-width: 768px) {
             .status-dot { width: 18px; height: 18px; border-width: 1px; }
-            .status-dot b { font-size: 7.5px; text-shadow: 1px 1px 1px rgba(0,0,0,0.8); }
+        
+            .status-dot b {
+                color: white;
+                font-size: 7.5px;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+            }
         }
 
         #adminPanel { display: none; background: #fff; padding: 20px; border-radius: 15px; margin-bottom: 15px; border: 2px solid #333; }
