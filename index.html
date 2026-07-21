@@ -109,10 +109,11 @@
             <select id="devFloor" style="flex:1;"><option value="9층">9층</option><option value="8층">8층</option></select>
             <select id="devZone" style="flex:1;"><option value="1구역">1구역</option><option value="2구역">2구역</option><option value="3구역">3구역</option><option value="4구역">4구역</option></select>
         </div>
-        <div class="admin-btns">
+         <div class="admin-btns">
             <button class="btn-add" onclick="addDev()">저장/수정</button>
             <button class="btn-del" onclick="deleteDev()">삭제</button>
         </div>
+        
         <div style="display:flex; gap:8px; margin-top:10px;">
             <button class="btn-excel"
                     onclick="downloadExcel()"
@@ -139,25 +140,26 @@
             accept="image/*"
             capture="environment"
             style="display:none;">
-    </div>  
-
-    <input
-        type="file"
-        id="photoFile"
-        accept="image/*"
-        capture="environment"
-        style="display:none;">
-    
-    <div id="list-container">
-        <div class="floor-section">
-            <div class="floor-title" style="color:var(--9f); border-color:var(--9f);">9F</div>
-            <div id="grid-9f" class="grid"></div>
+        
         </div>
-        <div class="floor-section">
-            <div class="floor-title" style="color:var(--8f); border-color:var(--8f);">8F</div>
-            <div id="grid-8f" class="grid"></div>
+        
+        <div id="list-container">
+            <div class="floor-section">
+                <div class="floor-title"
+                     style="color:var(--9f); border-color:var(--9f);">
+                    9F
+                </div>
+                <div id="grid-9f" class="grid"></div>
+            </div>
+        
+            <div class="floor-section">
+                <div class="floor-title"
+                     style="color:var(--8f); border-color:var(--8f);">
+                    8F
+                </div>
+                <div id="grid-8f" class="grid"></div>
+            </div>
         </div>
-    </div>
 
     <div id="map-container">
         <div class="map-section"><div class="map-title" style="color:var(--9f);">9F 관제</div><div class="map-wrapper" id="map9-box"></div></div>
