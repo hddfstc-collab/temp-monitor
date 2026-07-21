@@ -114,26 +114,30 @@
             <button class="btn-del" onclick="deleteDev()">삭제</button>
         </div>
         <div style="display:flex; gap:8px; margin-top:10px;">
-            <button class="btn-excel" onclick="downloadExcel()" style="flex:1;">
+            <button class="btn-excel"
+                    onclick="downloadExcel()"
+                    style="flex:1; width:auto; background:#27ae60;">
                 📊 엑셀추출
             </button>
         
             <button class="btn-excel"
                     onclick="openPhotoManager()"
-                    style="flex:1;background:#2980b9;">
-                📷 사진관리
+                    style="flex:1; width:auto; background:#2980b9;">
+                📷 사진등록
             </button>
         
             <button class="btn-excel"
                     onclick="viewPhoto()"
-                    style="flex:1;background:#27ae60;">
+                    style="flex:1; width:auto; background:#8e44ad;">
                 👁 사진보기
             </button>
         </div>
+        
         <input
             type="file"
             id="photoFile"
             accept="image/*"
+            capture="environment"
             style="display:none;">
     </div>  
 
