@@ -178,40 +178,24 @@
                 const card = document.createElement('div');
                 card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
                 
-                card.onclick = () => {
-                    if (isAdmin) {
-                        document.getElementById('devId').value = id;
-                        document.getElementById('devName').value = info.name || '';
-                        document.getElementById('devFloor').value = info.floor || '9층';
-                        document.getElementById('devZone').value = info.zone || '1구역';
-                        document.getElementById('devMarking').value = info.marking || '';
-                    } else {
-                        window.openModal(id, info.name);
-                    }
-                };
+                card.onclick = () => isAdmin ? (
+                    document.getElementById('devId').value = id, 
+                    document.getElementById('devName').value = info.name,
+                    document.getElementById('devFloor').value = info.floor || '9층',
+                    document.getElementById('devZone').value = info.zone || '1구역',
+                    document.getElementById('devMarking').value = info.marking || ''
+                ) : window.openModal(id, info.name);
                 
                 let battDisplay = "🔋 " + (info.battery || 0) + "%";
                 let battColor = "#666";
-                
+
                 if (typeof info.battery === 'string') {
                     const bState = info.battery.toLowerCase();
-                
-                    if (bState === 'high') {
-                        battDisplay = "🔋 High";
-                        battColor = "var(--safe)";
-                    }
-                    else if (bState === 'medium' || bState === 'middle') {
-                        battDisplay = "🪫 Mid";
-                        battColor = "#666";
-                    }
-                    else if (bState === 'low') {
-                        battDisplay = "🪫 Low";
-                        battColor = "var(--danger)";
-                    }
+                    if (bState === 'high') { battDisplay = "🔋 High"; battColor = "var(--safe)"; }
+                    else if (bState === 'medium' || bState === 'middle') { battDisplay = "🪫 Mid"; battColor = "#666"; }
+                    else if (bState === 'low') { battDisplay = "🪫 Low"; battColor = "var(--danger)"; }
                 } else {
-                    if ((info.battery || 0) < 20) {
-                        battColor = "var(--danger)";
-                    }
+                    if ((info.battery || 0) < 20) battColor = "var(--danger)";
                 }
                 
                 card.innerHTML = `
@@ -264,16 +248,9 @@
                 if (isAdmin) {
         
                     let pressTimer;
-                    let isDragging = false;
         
-                    // 클릭 시 기존 정보 표시
+                    // 클릭하면 설정창에 기존 정보 표시
                     dot.onclick = () => {
-        
-                        if (isDragging) {
-                            isDragging = false;
-                            return;
-                        }
-        
                         document.getElementById('devId').value = id;
                         document.getElementById('devName').value = info.name || '';
                         document.getElementById('devFloor').value = info.floor || '9층';
@@ -281,10 +258,9 @@
                         document.getElementById('devMarking').value = info.marking || '';
                     };
         
-                    // PC 길게 누르기 1초
+                    // PC 길게누르기
                     dot.onmousedown = (e) => {
                         pressTimer = setTimeout(() => {
-                            isDragging = true;
                             startDrag(e, id, dot, box);
                         }, 1000);
                     };
@@ -297,10 +273,9 @@
                         clearTimeout(pressTimer);
                     };
         
-                    // 모바일 길게 누르기 1초
+                    // 모바일 길게누르기
                     dot.ontouchstart = (e) => {
                         pressTimer = setTimeout(() => {
-                            isDragging = true;
                             startDrag(e, id, dot, box);
                         }, 1000);
                     };
@@ -309,17 +284,7 @@
                         clearTimeout(pressTimer);
                     };
         
-                } else {
-        
-                    dot.onclick = () => {
-                        window.openModal(id, info.name);
-                    };
-        
-                }
-        
-                box.appendChild(dot);
-            });
-        };
+             
 
         function startDrag(e, id, el, parent) {
             el.classList.add('dragging');
