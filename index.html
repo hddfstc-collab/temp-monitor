@@ -217,22 +217,93 @@
         }
 
         window.renderMap = () => {
-            const b9 = document.getElementById('map9-box'), b8 = document.getElementById('map8-box');
-            b9.style.backgroundImage = b8.style.backgroundImage = ''; 
-            b9.style.backgroundImage = `url('${mapImages['9층']}')`; b8.style.backgroundImage = `url('${mapImages['8층']}')`;
-            b9.innerHTML = b8.innerHTML = '';
+            const b9 = document.getElementById('map9-box'),
+                  b8 = document.getElementById('map8-box');
+        
+            b9.style.backgroundImage = b8.style.backgroundImage = '';
+        
+            b9.style.backgroundImage = `url('${mapImages['9층']}')`;
+            b8.style.backgroundImage = `url('${mapImages['8층']}')`;
+        
+            b9.innerHTML = '';
+            b8.innerHTML = '';
+        
             Object.entries(sensorData).forEach(([id, info]) => {
+        
                 const dot = document.createElement('div');
                 dot.className = 'status-dot';
-                dot.style.left = ((info.mapX || 50) / 12.8) + '%'; dot.style.top = ((info.mapY || 50) / 7.2) + '%';
+        
+                dot.style.left = ((info.mapX || 50) / 12.8) + '%';
+                dot.style.top = ((info.mapY || 50) / 7.2) + '%';
+        
                 const t = parseFloat(info.temperature || 0);
-                dot.style.backgroundColor = t > 26 ? 'var(--danger)' : (t < 23 ? 'var(--cold)' : 'var(--safe)');
-                
+        
+                dot.style.backgroundColor =
+                    t > 26 ? 'var(--danger)' :
+                    t < 23 ? 'var(--cold)' :
+                    'var(--safe)';
+        
                 dot.title = `${info.marking ? `[${info.marking}] ` : ''}${info.name}`;
                 dot.innerHTML = `<b>${t}</b>`;
+        
                 const box = info.floor === '9층' ? b9 : b8;
-                dot.onmousedown = (e) => isAdmin ? startDrag(e, id, dot, box) : window.openModal(id, info.name);
-                dot.ontouchstart = (e) => isAdmin ? startDrag(e, id, dot, box) : window.openModal(id, info.name);
+        
+                if (isAdmin) {
+        
+                    let pressTimer;
+                    let isDragging = false;
+        
+                    // 클릭 시 기존 정보 표시
+                    dot.onclick = () => {
+        
+                        if (isDragging) {
+                            isDragging = false;
+                            return;
+                        }
+        
+                        document.getElementById('devId').value = id;
+                        document.getElementById('devName').value = info.name || '';
+                        document.getElementById('devFloor').value = info.floor || '9층';
+                        document.getElementById('devZone').value = info.zone || '1구역';
+                        document.getElementById('devMarking').value = info.marking || '';
+                    };
+        
+                    // PC 길게 누르기 1초
+                    dot.onmousedown = (e) => {
+                        pressTimer = setTimeout(() => {
+                            isDragging = true;
+                            startDrag(e, id, dot, box);
+                        }, 1000);
+                    };
+        
+                    dot.onmouseup = () => {
+                        clearTimeout(pressTimer);
+                    };
+        
+                    dot.onmouseleave = () => {
+                        clearTimeout(pressTimer);
+                    };
+        
+                    // 모바일 길게 누르기 1초
+                    dot.ontouchstart = (e) => {
+                        pressTimer = setTimeout(() => {
+                            isDragging = true;
+                            startDrag(e, id, dot, box);
+                        }, 1000);
+                    };
+        
+                    dot.ontouchend = () => {
+                        clearTimeout(pressTimer);
+                    };
+        
+                } else {
+        
+                    dot.onclick = () => {
+                        window.openModal(id, info.name);
+                    };
+        
+                }
+        
                 box.appendChild(dot);
             });
         };
