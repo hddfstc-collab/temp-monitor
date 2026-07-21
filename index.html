@@ -41,9 +41,21 @@
         /* ===================================================
            1. 기본 스타일 (PC/태블릿 기준: 기존 34px 큰 도트 유지)
         =================================================== */
-        .status-dot { position: absolute; width: 34px; height: 34px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 6px rgba(0, 0, 0, 0.3); cursor: pointer; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .status-dot b { font-size: 11px; color: white; pointer-events: none; text-shadow: 1px 1px 1px rgba(0,0,0,0.6); }
-        .status-dot.dragging { opacity: 0.8; scale: 1.3; z-index: 100; cursor: grabbing; border-color: #ffeb3b; }
+        .status-dot {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            touch-action: none;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
 
         /* ===================================================
            2. 모바일 전용 스타일 (스마트폰 가로/세로 화면 18px 축소)
@@ -320,9 +332,19 @@
         };
 
         window.toggleAdmin = () => {
-            if (isAdmin) { isAdmin = false; document.getElementById('adminPanel').style.display = 'none'; }
-            else if (prompt("PW") === "6011") { isAdmin = true; document.getElementById('adminPanel').style.display = 'block'; }
+            if (isAdmin) {
+                isAdmin = false;
+                document.getElementById('adminPanel').style.display = 'none';
+            } else if (prompt("PW") === "6011") {
+                isAdmin = true;
+                document.getElementById('adminPanel').style.display = 'block';
+            }
+        
             renderList();
+        
+            if (document.getElementById('map-container').style.display === 'block') {
+                window.renderMap();
+            }
         };
 
         window.openModal = (id, name) => {
