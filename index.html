@@ -191,14 +191,27 @@
                 };
                 
                 let battDisplay = "🔋 " + (info.battery || 0) + "%";
-
+                let battColor = "#666";
+                
                 if (typeof info.battery === 'string') {
                     const bState = info.battery.toLowerCase();
-                    if (bState === 'high') { battDisplay = "🔋 High"; battColor = "var(--safe)"; }
-                    else if (bState === 'medium' || bState === 'middle') { battDisplay = "🪫 Mid"; battColor = "#666"; }
-                    else if (bState === 'low') { battDisplay = "🪫 Low"; battColor = "var(--danger)"; }
+                
+                    if (bState === 'high') {
+                        battDisplay = "🔋 High";
+                        battColor = "var(--safe)";
+                    }
+                    else if (bState === 'medium' || bState === 'middle') {
+                        battDisplay = "🪫 Mid";
+                        battColor = "#666";
+                    }
+                    else if (bState === 'low') {
+                        battDisplay = "🪫 Low";
+                        battColor = "var(--danger)";
+                    }
                 } else {
-                    if ((info.battery || 0) < 20) battColor = "var(--danger)";
+                    if ((info.battery || 0) < 20) {
+                        battColor = "var(--danger)";
+                    }
                 }
                 
                 card.innerHTML = `
