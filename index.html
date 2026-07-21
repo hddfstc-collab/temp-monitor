@@ -123,6 +123,12 @@
                     style="flex:1;background:#2980b9;">
                 📷 사진관리
             </button>
+        
+            <button class="btn-excel"
+                    onclick="viewPhoto()"
+                    style="flex:1;background:#27ae60;">
+                👁 사진보기
+            </button>
         </div>
         <input
             type="file"
@@ -528,8 +534,7 @@
             confirm("삭제?") &&
             remove(ref(db, `devices/${document.getElementById('devId').value}`));
         
-       window.openPhotoManager = () => {
-        
+       window.viewPhoto = () => {
             const devId = document.getElementById('devId').value;
         
             if (!devId) {
@@ -537,9 +542,42 @@
                 return;
             }
         
-            document.getElementById('photoFile').click();
-        };
+            const photo = sensorData[devId]?.photo;
         
+            if (!photo) {
+                alert('등록된 사진이 없습니다.');
+                return;
+            }
+        
+            const win = window.open('', '_blank');
+        
+            if (!win) {
+                alert('팝업이 차단되었습니다. 팝업을 허용해주세요.');
+                return;
+            }
+        
+            win.document.title = '설치위치 사진';
+        
+            win.document.body.style.margin = '0';
+            win.document.body.style.width = '100vw';
+            win.document.body.style.height = '100vh';
+            win.document.body.style.backgroundColor = '#000';
+            win.document.body.style.display = 'flex';
+            win.document.body.style.alignItems = 'center';
+            win.document.body.style.justifyContent = 'center';
+            win.document.body.style.overflow = 'hidden';
+        
+            const photoImage = win.document.createElement('img');
+        
+            photoImage.src = photo;
+            photoImage.alt = '온도계 설치위치 사진';
+            photoImage.style.maxWidth = '100%';
+            photoImage.style.maxHeight = '100%';
+            photoImage.style.objectFit = 'contain';
+        
+            win.document.body.appendChild(photoImage);
+        };
+
         document.getElementById('photoFile')
         .addEventListener('change', (e) => {
         
