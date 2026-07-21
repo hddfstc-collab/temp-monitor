@@ -246,37 +246,35 @@
                 const box = info.floor === '9층' ? b9 : b8;
         
                 if (isAdmin) {
-        
-                    let pressTimer;
-        
-                    dot.onclick = () => {
+                
+                    dot.onmousedown = (e) => {
+                
                         document.getElementById('devId').value = id;
                         document.getElementById('devName').value = info.name || '';
                         document.getElementById('devFloor').value = info.floor || '9층';
                         document.getElementById('devZone').value = info.zone || '1구역';
                         document.getElementById('devMarking').value = info.marking || '';
-                    };
-        
-                    dot.onmousedown = (e) => {
+                
                         startDrag(e, id, dot, box);
                     };
-                    
-                    dot.onmouseup = () => {};
-                    
-                    dot.onmouseleave = () => {};
-                    
+                
                     dot.ontouchstart = (e) => {
+                
+                        document.getElementById('devId').value = id;
+                        document.getElementById('devName').value = info.name || '';
+                        document.getElementById('devFloor').value = info.floor || '9층';
+                        document.getElementById('devZone').value = info.zone || '1구역';
+                        document.getElementById('devMarking').value = info.marking || '';
+                
                         startDrag(e, id, dot, box);
                     };
-                    
-                    dot.ontouchend = () => {};
-        
+                
                 } else {
-        
+                
                     dot.onclick = () => {
                         window.openModal(id, info.name);
                     };
-        
+                
                 }
         
                 box.appendChild(dot);
