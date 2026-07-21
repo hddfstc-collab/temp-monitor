@@ -178,16 +178,19 @@
                 const card = document.createElement('div');
                 card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
                 
-                card.onclick = () => isAdmin ? (
-                    document.getElementById('devId').value = id, 
-                    document.getElementById('devName').value = info.name,
-                    document.getElementById('devFloor').value = info.floor || '9층',
-                    document.getElementById('devZone').value = info.zone || '1구역',
-                    document.getElementById('devMarking').value = info.marking || ''
-                ) : window.openModal(id, info.name);
+                card.onclick = () => {
+                    if (isAdmin) {
+                        document.getElementById('devId').value = id;
+                        document.getElementById('devName').value = info.name || '';
+                        document.getElementById('devFloor').value = info.floor || '9층';
+                        document.getElementById('devZone').value = info.zone || '1구역';
+                        document.getElementById('devMarking').value = info.marking || '';
+                    } else {
+                        window.openModal(id, info.name);
+                    }
+                };
                 
                 let battDisplay = "🔋 " + (info.battery || 0) + "%";
-                let battColor = "#666";
 
                 if (typeof info.battery === 'string') {
                     const bState = info.battery.toLowerCase();
