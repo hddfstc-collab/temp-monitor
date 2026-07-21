@@ -258,28 +258,18 @@
                     };
         
                     dot.onmousedown = (e) => {
-                        pressTimer = setTimeout(() => {
-                            startDrag(e, id, dot, box);
-                        }, 1000);
+                        startDrag(e, id, dot, box);
                     };
-        
-                    dot.onmouseup = () => {
-                        clearTimeout(pressTimer);
-                    };
-        
-                    dot.onmouseleave = () => {
-                        clearTimeout(pressTimer);
-                    };
-        
+                    
+                    dot.onmouseup = () => {};
+                    
+                    dot.onmouseleave = () => {};
+                    
                     dot.ontouchstart = (e) => {
-                        pressTimer = setTimeout(() => {
-                            startDrag(e, id, dot, box);
-                        }, 1000);
+                        startDrag(e, id, dot, box);
                     };
-        
-                    dot.ontouchend = () => {
-                        clearTimeout(pressTimer);
-                    };
+                    
+                    dot.ontouchend = () => {};
         
                 } else {
         
