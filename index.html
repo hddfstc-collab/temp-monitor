@@ -283,6 +283,17 @@
                     dot.ontouchend = () => {
                         clearTimeout(pressTimer);
                     };
+                    } else {
+            
+                        dot.onclick = () => {
+                            window.openModal(id, info.name);
+                        };
+            
+                    }
+            
+                    box.appendChild(dot);
+                });
+            };
         
              
 
