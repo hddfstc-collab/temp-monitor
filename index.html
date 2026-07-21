@@ -249,7 +249,6 @@
         
                     let pressTimer;
         
-                    // 클릭하면 설정창에 기존 정보 표시
                     dot.onclick = () => {
                         document.getElementById('devId').value = id;
                         document.getElementById('devName').value = info.name || '';
@@ -258,7 +257,6 @@
                         document.getElementById('devMarking').value = info.marking || '';
                     };
         
-                    // PC 길게누르기
                     dot.onmousedown = (e) => {
                         pressTimer = setTimeout(() => {
                             startDrag(e, id, dot, box);
@@ -273,7 +271,6 @@
                         clearTimeout(pressTimer);
                     };
         
-                    // 모바일 길게누르기
                     dot.ontouchstart = (e) => {
                         pressTimer = setTimeout(() => {
                             startDrag(e, id, dot, box);
@@ -283,17 +280,20 @@
                     dot.ontouchend = () => {
                         clearTimeout(pressTimer);
                     };
-                    } else {
-            
-                        dot.onclick = () => {
-                            window.openModal(id, info.name);
-                        };
-            
-                    }
-            
-                    box.appendChild(dot);
-                });
-            };
+        
+                } else {
+        
+                    dot.onclick = () => {
+                        window.openModal(id, info.name);
+                    };
+        
+                }
+        
+                box.appendChild(dot);
+        
+            });
+        
+        };
         
              
 
