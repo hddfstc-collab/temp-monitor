@@ -24,6 +24,11 @@
         .floor-title { font-size: 1.4rem; font-weight: 900; margin-bottom: 15px; padding-left: 12px; border-left: 6px solid #333; height: 28px; display: flex; align-items: center; }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         @media (min-width: 1024px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+        .zones-container { display: flex; flex-direction: column; gap: 18px; }
+        .zone-group { background: #eef1f5; border-radius: 14px; padding: 12px; }
+        .zone-group-title { font-size: 1rem; font-weight: 900; color: #444; margin: 0 0 10px 2px; }
+        .zone-group-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        @media (min-width: 1024px) { .zone-group-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
         .card { background: white; border-radius: 14px; padding: 18px; border-top: 6px solid #ccc; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); cursor: pointer; transition: 0.2s; }
         .card:hover { transform: translateY(-3px); }
@@ -152,7 +157,7 @@
                  style="color:var(--9f); border-color:var(--9f);">
                 9F
             </div>
-            <div id="grid-9f" class="grid"></div>
+            <div id="grid-9f" class="zones-container"></div>
         </div>
 
         <div class="floor-section">
@@ -160,7 +165,7 @@
                  style="color:var(--8f); border-color:var(--8f);">
                 8F
             </div>
-            <div id="grid-8f" class="grid"></div>
+            <div id="grid-8f" class="zones-container"></div>
         </div>
     </div>
 
@@ -224,50 +229,78 @@
 
         function renderList() {
             const g8 = document.getElementById('grid-8f'), g9 = document.getElementById('grid-9f');
-            g8.innerHTML = ''; g9.innerHTML = '';
+            g8.innerHTML = '';
+            g9.innerHTML = '';
 
-            const sortedDevices = Object.entries(sensorData).sort((a, b) => {
-                const markA = a[1].marking || 'ZZZ';
-                const markB = b[1].marking || 'ZZZ';
-                return markA.localeCompare(markB);
+            const zoneOrder = ['1구역', '2구역', '3구역', '4구역'];
+            const floorTargets = { '9층': g9, '8층': g8 };
+
+            Object.entries(floorTargets).forEach(([floor, target]) => {
+                zoneOrder.forEach(zone => {
+                    const zoneDevices = Object.entries(sensorData)
+                        .filter(([, info]) => info.floor === floor && (info.zone || '1구역') === zone)
+                        .sort((a, b) => {
+                            const markA = a[1].marking || 'ZZZ';
+                            const markB = b[1].marking || 'ZZZ';
+                            return markA.localeCompare(markB);
+                        });
+
+                    if (zoneDevices.length === 0) return;
+
+                    const zoneGroup = document.createElement('section');
+                    zoneGroup.className = 'zone-group';
+
+                    const zoneTitle = document.createElement('div');
+                    zoneTitle.className = 'zone-group-title';
+                    zoneTitle.innerText = `${zone} (${zoneDevices.length})`;
+
+                    const zoneGrid = document.createElement('div');
+                    zoneGrid.className = 'zone-group-grid';
+
+                    zoneDevices.forEach(([id, info]) => {
+                        const card = document.createElement('div');
+                        card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
+
+                        card.onclick = () => isAdmin ? (
+                            document.getElementById('devId').value = id,
+                            document.getElementById('devName').value = info.name,
+                            document.getElementById('devFloor').value = info.floor || '9층',
+                            document.getElementById('devZone').value = info.zone || '1구역',
+                            document.getElementById('devMarking').value = info.marking || ''
+                        ) : window.openModal(id, info.name);
+
+                        let battDisplay = "🔋 " + (info.battery || 0) + "%";
+                        let battColor = "#666";
+
+                        if (typeof info.battery === 'string') {
+                            const bState = info.battery.toLowerCase();
+                            if (bState === 'high') { battDisplay = "🔋 High"; battColor = "var(--safe)"; }
+                            else if (bState === 'medium' || bState === 'middle') { battDisplay = "🪫 Mid"; battColor = "#666"; }
+                            else if (bState === 'low') { battDisplay = "🪫 Low"; battColor = "var(--danger)"; }
+                        } else {
+                            if ((info.battery || 0) < 20) battColor = "var(--danger)";
+                        }
+
+                        card.innerHTML = `
+                            <span class="zone-label">${info.zone}</span>
+                            <div class="brand-label">${info.marking ? `[${info.marking}] ` : ''}${info.name}</div>
+                            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                                <div class="temp-main">${info.temperature || 0}°</div>
+                                <div style="font-size:11px; color:#666; font-weight:600; text-align:right;">
+                                    <div>💧 ${info.humidity || 0}%</div>
+                                    <div style="color:${battColor}; font-weight:bold;">${battDisplay}</div>
+                                </div>
+                            </div>`;
+
+                        zoneGrid.appendChild(card);
+                    });
+
+                    zoneGroup.appendChild(zoneTitle);
+                    zoneGroup.appendChild(zoneGrid);
+                    target.appendChild(zoneGroup);
+                });
             });
 
-            sortedDevices.forEach(([id, info]) => {
-                const card = document.createElement('div');
-                card.className = `card ${info.floor === '9층' ? 'f9' : 'f8'}`;
-
-                card.onclick = () => isAdmin ? (
-                    document.getElementById('devId').value = id,
-                    document.getElementById('devName').value = info.name,
-                    document.getElementById('devFloor').value = info.floor || '9층',
-                    document.getElementById('devZone').value = info.zone || '1구역',
-                    document.getElementById('devMarking').value = info.marking || ''
-                ) : window.openModal(id, info.name);
-
-                let battDisplay = "🔋 " + (info.battery || 0) + "%";
-                let battColor = "#666";
-
-                if (typeof info.battery === 'string') {
-                    const bState = info.battery.toLowerCase();
-                    if (bState === 'high') { battDisplay = "🔋 High"; battColor = "var(--safe)"; }
-                    else if (bState === 'medium' || bState === 'middle') { battDisplay = "🪫 Mid"; battColor = "#666"; }
-                    else if (bState === 'low') { battDisplay = "🪫 Low"; battColor = "var(--danger)"; }
-                } else {
-                    if ((info.battery || 0) < 20) battColor = "var(--danger)";
-                }
-
-                card.innerHTML = `
-                    <span class="zone-label">${info.zone}</span>
-                    <div class="brand-label">${info.marking ? `[${info.marking}] ` : ''}${info.name}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-                        <div class="temp-main">${info.temperature || 0}°</div>
-                        <div style="font-size:11px; color:#666; font-weight:600; text-align:right;">
-                            <div>💧 ${info.humidity || 0}%</div>
-                            <div style="color:${battColor}; font-weight:bold;">${battDisplay}</div>
-                        </div>
-                    </div>`;
-                (info.floor === '9층' ? g9 : g8).appendChild(card);
-            });
             document.getElementById('totalCount').innerText = `(${Object.keys(sensorData).length}/14)`;
         }
 
@@ -451,7 +484,13 @@
             if (snap.exists()) {
                 Object.entries(snap.val()).forEach(([ts_raw, v]) => {
                     let ts = parseInt(ts_raw);
-                    if (ts >= startTime && ts <= endTime) plotData.push({ x: ts, y: v.temperature });
+                    if (ts >= startTime && ts <= endTime) {
+                        plotData.push({
+                            x: ts,
+                            temperature: Number(v.temperature),
+                            humidity: Number(v.humidity)
+                        });
+                    }
                 });
             }
             plotData.sort((a, b) => a.x - b.x);
@@ -471,23 +510,48 @@
             const minTime = new Date(sStr + "T10:00:00").getTime();
             const maxTime = new Date(eStr + "T21:00:00").getTime();
 
+            const temperatureData = plotData
+                .filter(point => Number.isFinite(point.temperature))
+                .map(point => ({ x: point.x, y: point.temperature }));
+
+            const humidityData = plotData
+                .filter(point => Number.isFinite(point.humidity))
+                .map(point => ({ x: point.x, y: point.humidity }));
+
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    datasets: [{
-                        data: plotData,
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.1,
-                        fill: true,
-                        pointRadius: plotData.map((d, i) => (i === 0 || d.y !== plotData[i - 1].y) ? 4 : 0),
-                        pointHitRadius: 10
-                    }]
+                    datasets: [
+                        {
+                            label: '온도 (°C)',
+                            data: temperatureData,
+                            yAxisID: 'y',
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.10)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false,
+                            pointRadius: temperatureData.map((d, i) => (i === 0 || d.y !== temperatureData[i - 1].y) ? 4 : 0),
+                            pointHitRadius: 10
+                        },
+                        {
+                            label: '습도 (%)',
+                            data: humidityData,
+                            yAxisID: 'y1',
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.10)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false,
+                            pointRadius: humidityData.map((d, i) => (i === 0 || d.y !== humidityData[i - 1].y) ? 3 : 0),
+                            pointHitRadius: 10
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     scales: {
                         x: {
                             type: 'time',
@@ -500,33 +564,36 @@
                             max: window.isBusinessHoursOnly ? maxTime : undefined,
                             grid: { display: true, color: '#f0f0f0' }
                         },
-                        y: { beginAtZero: false, title: { display: true, text: '온도 (°C)' } }
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: false,
+                            title: { display: true, text: '온도 (°C)' },
+                            ticks: { color: '#e74c3c' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: false,
+                            suggestedMin: 0,
+                            suggestedMax: 100,
+                            title: { display: true, text: '습도 (%)' },
+                            ticks: { color: '#3498db' },
+                            grid: { drawOnChartArea: false }
+                        }
                     },
-                    plugins: { legend: { display: false } }
-                },
-                plugins: [{
-                    id: 'valLabel',
-                    afterDatasetsDraw(chart) {
-                        const { ctx, data } = chart;
-                        ctx.save();
-                        ctx.font = 'bold 11px Arial';
-                        ctx.fillStyle = '#d35400';
-                        ctx.textAlign = 'center';
-
-                        chart.getDatasetMeta(0).data.forEach((p, i) => {
-                            const currentPoint = data.datasets[0].data[i];
-                            if (window.isBusinessHoursOnly && (currentPoint.x < minTime || currentPoint.x > maxTime)) return;
-
-                            const currentVal = currentPoint.y;
-                            const prevVal = i > 0 ? data.datasets[0].data[i - 1].y : null;
-
-                            if (i === 0 || currentVal !== prevVal) {
-                                ctx.fillText(currentVal + '°', p.x, p.y - 10);
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label(context) {
+                                    const unit = context.dataset.yAxisID === 'y1' ? '%' : '°C';
+                                    return `${context.dataset.label}: ${context.parsed.y}${unit}`;
+                                }
                             }
-                        });
-                        ctx.restore();
+                        }
                     }
-                }]
+                }
             });
         };
 
