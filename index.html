@@ -325,11 +325,40 @@
                 dot.style.top = ((info.mapY || 50) / 7.2) + '%';
 
                 const t = parseFloat(info.temperature || 0);
-
-                dot.style.backgroundColor =
-                    t > 26 ? 'var(--danger)' :
-                    t < 23 ? 'var(--cold)' :
-                    'var(--safe)';
+                const currentMonth = new Date().getMonth() + 1;
+                
+                let seasonName = '전환기';
+                let minTemp = null;
+                let maxTemp = null;
+                
+                // 냉방기간: 6월~8월
+                if (currentMonth >= 6 && currentMonth <= 8) {
+                    seasonName = '냉방';
+                    minTemp = 23;
+                    maxTemp = 26;
+                }
+                
+                // 난방기간: 12월~2월
+                else if (
+                    currentMonth === 12 ||
+                    currentMonth === 1 ||
+                    currentMonth === 2
+                ) {
+                    seasonName = '난방';
+                    minTemp = 19;
+                    maxTemp = 21;
+                }
+                
+                // 계절에 따른 도트 색상
+                if (minTemp === null || maxTemp === null) {
+                    dot.style.backgroundColor = '#7f8c8d';
+                } else if (t < minTemp) {
+                    dot.style.backgroundColor = 'var(--cold)';
+                } else if (t > maxTemp) {
+                    dot.style.backgroundColor = 'var(--danger)';
+                } else {
+                    dot.style.backgroundColor = 'var(--safe)';
+                }
 
                 dot.title = `${info.marking ? `[${info.marking}] ` : ''}${info.name}`;
                 dot.innerHTML = `<b>${t}</b>`;
