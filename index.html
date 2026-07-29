@@ -935,7 +935,7 @@
             document.getElementById('noticeAutoPopup').checked = notice.autoPopup === true;
         };
 
-        window.saveNotice = async () => {
+                window.saveNotice = async () => {
             const title = document.getElementById('noticeTitle').value.trim();
             const content = document.getElementById('noticeContent').value.trim();
             const selectedId = document.getElementById('noticeSelect').value;
@@ -944,6 +944,7 @@
                 alert('공지 제목을 입력하세요.');
                 return;
             }
+
             if (!content) {
                 alert('공지 내용을 입력하세요.');
                 return;
@@ -955,30 +956,63 @@
                 ? (noticesData[selectedId].createdAt || now)
                 : now;
 
-            await set(ref(db, `notices/${id}`), {
-                title,
-                content,
-                active: document.getElementById('noticeActive').checked,
-                autoPopup: document.getElementById('noticeAutoPopup').checked,
-                createdAt,
-                updatedAt: now
-            });
+            try {
+                await set(ref(db, `notices/${id}`), {
+                    title,
+                    content,
+                    active: document.getElementById('noticeActive').checked,
+                    autoPopup: document.getElementById('noticeAutoPopup').checked,
+                    createdAt,
+                    updatedAt: now
+                });
 
-            document.getElementById('noticeSelect').value = id;
-            alert(selectedId ? '공지사항이 수정되었습니다.' : '공지사항이 등록되었습니다.');
+                document.getElementById('noticeSelect').value = id;
+
+                alert(
+                    selectedId
+                        ? '공지사항이 수정되었습니다.'
+                        : '공지사항이 등록되었습니다.'
+                );
+
+            } catch (error) {
+                console.error('공지사항 저장 실패:', error);
+
+                alert(
+                    '공지사항 저장에 실패했습니다.\n\n' +
+                    '오류 코드: ' + (error.code || '확인 불가') + '\n' +
+                    '오류 내용: ' + (error.message || error)
+                );
+            }
         };
 
         window.deleteNotice = async () => {
             const id = document.getElementById('noticeSelect').value;
+
             if (!id) {
                 alert('삭제할 공지사항을 선택하세요.');
                 return;
             }
-            if (!confirm('선택한 공지사항을 삭제하시겠습니까?')) return;
 
-            await remove(ref(db, `notices/${id}`));
-            window.newNoticeForm();
-            alert('공지사항이 삭제되었습니다.');
+            if (!confirm('선택한 공지사항을 삭제하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                await remove(ref(db, `notices/${id}`));
+
+                window.newNoticeForm();
+
+                alert('공지사항이 삭제되었습니다.');
+
+            } catch (error) {
+                console.error('공지사항 삭제 실패:', error);
+
+                alert(
+                    '공지사항 삭제에 실패했습니다.\n\n' +
+                    '오류 코드: ' + (error.code || '확인 불가') + '\n' +
+                    '오류 내용: ' + (error.message || error)
+                );
+            }
         };
 
         window.closeModal = () => document.getElementById('modal').style.display = 'none';
