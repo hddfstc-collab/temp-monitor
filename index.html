@@ -92,6 +92,34 @@
         .period-btns { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 5px; }
         .period-btns button { flex: 1; min-width: 55px; height: 32px; font-size: 12px; background: #fff; border: 1px solid #ddd; border-radius: 8px; }
 
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .help-btn { width: 40px; height: 40px; border: none; border-radius: 50%; background: #f1f3f5; color: #333; font-size: 20px; font-weight: bold; cursor: pointer; }
+        .guide-modal-content { width: 95%; max-width: 680px; max-height: 88vh; background: #fff; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; }
+        .notice-list { display: flex; flex-direction: column; gap: 12px; }
+        .notice-item { padding: 14px; border-radius: 12px; background: #fff8e1; border-left: 5px solid #f39c12; }
+        .notice-item-title { font-size: 16px; font-weight: 900; color: #333; margin-bottom: 6px; }
+        .notice-item-content { white-space: pre-wrap; line-height: 1.65; color: #444; }
+        .notice-item-date { margin-top: 8px; font-size: 11px; color: #888; }
+        .guide-section { margin-top: 16px; padding: 16px; border-radius: 12px; background: #f5f7fa; line-height: 1.7; }
+        .guide-section h3 { margin: 0 0 10px; font-size: 16px; }
+        .guide-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+        .notice-hide-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+        .notice-hide-actions button { flex: 1; min-width: 105px; min-height: 40px; border: none; border-radius: 9px; background: #eef1f5; color: #333; font-weight: bold; cursor: pointer; }
+        .notice-admin-content { width: 95%; max-width: 720px; max-height: 90vh; background: #fff; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; }
+        .notice-admin-body { padding: 18px; overflow-y: auto; }
+        .notice-admin-body input[type="text"], .notice-admin-body select, .notice-admin-body textarea { width: 100%; margin-bottom: 10px; }
+        .notice-admin-body textarea { min-height: 170px; resize: vertical; padding: 12px; border: 1px solid #ccc; border-radius: 10px; font-family: inherit; }
+        .notice-options { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 0; }
+        .notice-options label { display: flex; align-items: center; gap: 6px; font-weight: bold; }
+        .notice-admin-btns { display: flex; gap: 8px; margin-top: 10px; }
+        .notice-admin-btns button { flex: 1; min-height: 44px; border: none; border-radius: 10px; color: #fff; font-weight: bold; cursor: pointer; }
+        @media (max-width: 768px) {
+            .help-btn { width: 36px; height: 36px; font-size: 18px; }
+            .guide-modal-content, .notice-admin-content { max-height: 92vh; border-radius: 16px; }
+            .notice-hide-actions button { min-width: calc(50% - 6px); }
+            .notice-admin-btns { flex-wrap: wrap; }
+            .notice-admin-btns button { min-width: calc(50% - 8px); }
+        }
         #adminToggle { position: fixed; bottom: 25px; left: 25px; width: 50px; height: 50px; border-radius: 50%; background: #333; color: white; border: none; opacity: 0.6; z-index: 1000; font-size: 20px; }
         input, select { height: 42px; border-radius: 10px; border: 1px solid #ccc; padding: 0 12px; }
     </style>
@@ -100,9 +128,12 @@
 <body>
     <header>
         <h1>무역센터점 통합 온도 관제 <small id="totalCount" style="color:#888; font-weight:normal;">(0/14)</small></h1>
-        <div class="toggle-box">
-            <button id="btn-list" class="active" onclick="changeView('list')">☰</button>
-            <button id="btn-map" onclick="changeView('map')">🗺️</button>
+        <div class="header-actions">
+            <button type="button" class="help-btn" onclick="openGuideModal(true)" aria-label="공지사항 및 이용방법">❓</button>
+            <div class="toggle-box">
+                <button id="btn-list" class="active" onclick="changeView('list')">☰</button>
+                <button id="btn-map" onclick="changeView('map')">🗺️</button>
+            </div>
         </div>
     </header>
 
@@ -142,6 +173,12 @@
             </button>
         </div>
 
+        <button type="button"
+                class="btn-excel"
+                onclick="openNoticeAdmin()"
+                style="background:#f39c12;">
+            📢 공지사항 관리
+        </button>
         <input
             type="file"
             id="photoFile"
@@ -199,6 +236,80 @@
         </div>
     </div>
 
+    <div id="guideModal" class="modal" onclick="handleGuideBackdrop(event)">
+        <div class="guide-modal-content">
+            <div style="padding:16px 18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <b style="font-size:18px;">📢 공지사항 및 이용방법</b>
+                <button type="button" onclick="closeGuideModal()" style="border:none; background:none; font-size:28px; cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:18px; overflow-y:auto;">
+                <div id="guideNoticeArea" class="notice-list"></div>
+
+                <div class="guide-section">
+                    <h3>🌡️ 계절별 기준온도</h3>
+                    <div>☀️ 냉방기간: 6월~8월 / 정상 23~26℃</div>
+                    <div>❄️ 난방기간: 12월~2월 / 정상 19~21℃</div>
+                    <div>🌿 3월~5월, 9월~11월은 전환기로 회색 도트가 표시됩니다.</div>
+                </div>
+
+                <div class="guide-section">
+                    <h3>🎨 도트 색상</h3>
+                    <div><span class="guide-dot" style="background:#27ae60;"></span>초록색: 기준온도 정상</div>
+                    <div><span class="guide-dot" style="background:#3498db;"></span>파란색: 기준온도보다 낮음</div>
+                    <div><span class="guide-dot" style="background:#e74c3c;"></span>빨간색: 기준온도보다 높음</div>
+                    <div><span class="guide-dot" style="background:#7f8c8d;"></span>회색: 냉난방 전환기간</div>
+                </div>
+
+                <div class="guide-section">
+                    <h3>📋 목록·지도 이용방법</h3>
+                    <div>• 목록은 층별·구역별로 표시되며 구역 안에서 마킹순으로 정렬됩니다.</div>
+                    <div>• 카드 또는 지도 도트를 누르면 온도·습도 변화 그래프를 확인할 수 있습니다.</div>
+                    <div>• 관리자 모드에서는 기기정보 수정, 지도 위치 이동, 설치사진 등록·보기가 가능합니다.</div>
+                </div>
+
+                <div id="noticeHideArea" class="notice-hide-actions" style="display:none;">
+                    <button type="button" onclick="hideCurrentNotice(1)">오늘 하루 보지 않기</button>
+                    <button type="button" onclick="hideCurrentNotice(3)">3일 동안 보지 않기</button>
+                    <button type="button" onclick="hideCurrentNotice(7)">7일 동안 보지 않기</button>
+                </div>
+
+                <button type="button" onclick="closeGuideModal()" style="width:100%; height:45px; margin-top:14px; border:none; border-radius:10px; background:#333; color:#fff; font-weight:bold; cursor:pointer;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="noticeAdminModal" class="modal">
+        <div class="notice-admin-content">
+            <div style="padding:16px 18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <b style="font-size:18px;">📢 공지사항 관리</b>
+                <button type="button" onclick="closeNoticeAdmin()" style="border:none; background:none; font-size:28px; cursor:pointer;">&times;</button>
+            </div>
+            <div class="notice-admin-body">
+                <label for="noticeSelect" style="font-weight:bold; display:block; margin-bottom:6px;">기존 공지 선택</label>
+                <select id="noticeSelect" onchange="selectNoticeForEdit()">
+                    <option value="">새 공지 작성</option>
+                </select>
+
+                <label for="noticeTitle" style="font-weight:bold; display:block; margin-bottom:6px;">제목</label>
+                <input type="text" id="noticeTitle" placeholder="공지 제목">
+
+                <label for="noticeContent" style="font-weight:bold; display:block; margin-bottom:6px;">내용</label>
+                <textarea id="noticeContent" placeholder="공지 내용을 입력하세요."></textarea>
+
+                <div class="notice-options">
+                    <label><input type="checkbox" id="noticeActive" checked> 게시</label>
+                    <label><input type="checkbox" id="noticeAutoPopup" checked> 접속 시 자동 팝업</label>
+                </div>
+
+                <div class="notice-admin-btns">
+                    <button type="button" onclick="newNoticeForm()" style="background:#7f8c8d;">신규</button>
+                    <button type="button" onclick="saveNotice()" style="background:#1a73e8;">저장/수정</button>
+                    <button type="button" onclick="deleteNotice()" style="background:#e74c3c;">삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <button id="adminToggle" onclick="toggleAdmin()">🔒</button>
 
     <script type="module">
@@ -217,6 +328,8 @@
         const mapImages = { '8층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%208F.jpg', '9층': 'https://raw.githubusercontent.com/hddfstc-collab/temp-monitor/main/%EB%83%89%EB%82%9C%EB%B0%A9%EA%B5%AC%EC%97%AD%209F.jpg' };
 
         let sensorData = {}, isAdmin = false, myChart = null, currentDeviceId = null;
+        let noticesData = {}, currentGuideNoticeId = null, currentGuideNoticeVersion = null;
+        let lastAutoNoticeToken = null;
 
         window.isBusinessHoursOnly = true;
         window.currentPlotData = [];
@@ -225,6 +338,13 @@
             sensorData = snap.val() || {};
             renderList();
             if (document.getElementById('map-container').style.display === 'block') window.renderMap();
+        });
+
+        onValue(ref(db, 'notices'), snap => {
+            noticesData = snap.val() || {};
+            renderNoticeAdminList();
+
+            setTimeout(() => openLatestAutoNotice(), 150);
         });
 
         function renderList() {
@@ -624,6 +744,241 @@
                     }
                 }
             });
+        };
+
+        function getSortedNotices(activeOnly = false) {
+            return Object.entries(noticesData)
+                .filter(([, notice]) => !activeOnly || notice.active === true)
+                .sort((a, b) => (b[1].updatedAt || b[1].createdAt || 0) - (a[1].updatedAt || a[1].createdAt || 0));
+        }
+
+        function getNoticeHideKey(id, version) {
+            return `noticeHidden:${id}:${version}`;
+        }
+
+        function isNoticeHidden(id, version) {
+            const hiddenUntil = Number(localStorage.getItem(getNoticeHideKey(id, version)) || 0);
+            return hiddenUntil > Date.now();
+        }
+
+        function formatNoticeDate(timestamp) {
+            if (!timestamp) return '';
+            return new Date(timestamp).toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function renderGuideNotices(noticeEntries) {
+            const area = document.getElementById('guideNoticeArea');
+            area.innerHTML = '';
+
+            if (!noticeEntries || noticeEntries.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'notice-item';
+                empty.style.background = '#f5f7fa';
+                empty.style.borderLeftColor = '#95a5a6';
+                empty.innerText = '현재 게시된 공지사항이 없습니다.';
+                area.appendChild(empty);
+                return;
+            }
+
+            noticeEntries.forEach(([id, notice]) => {
+                const item = document.createElement('article');
+                item.className = 'notice-item';
+
+                const title = document.createElement('div');
+                title.className = 'notice-item-title';
+                title.textContent = notice.title || '제목 없음';
+
+                const content = document.createElement('div');
+                content.className = 'notice-item-content';
+                content.textContent = notice.content || '';
+
+                const date = document.createElement('div');
+                date.className = 'notice-item-date';
+                date.textContent = `수정: ${formatNoticeDate(notice.updatedAt || notice.createdAt)}`;
+
+                item.appendChild(title);
+                item.appendChild(content);
+                item.appendChild(date);
+                area.appendChild(item);
+            });
+        }
+
+        window.openGuideModal = (manual = true, noticeId = null) => {
+            const activeNotices = getSortedNotices(true);
+            const modal = document.getElementById('guideModal');
+            const hideArea = document.getElementById('noticeHideArea');
+
+            if (manual) {
+                currentGuideNoticeId = null;
+                currentGuideNoticeVersion = null;
+                renderGuideNotices(activeNotices);
+                hideArea.style.display = 'none';
+            } else {
+                const selected = activeNotices.find(([id]) => id === noticeId);
+                if (selected) {
+                    const [id, notice] = selected;
+                    currentGuideNoticeId = id;
+                    currentGuideNoticeVersion = notice.updatedAt || notice.createdAt || 0;
+                    renderGuideNotices([selected]);
+                    hideArea.style.display = 'flex';
+                } else {
+                    renderGuideNotices(activeNotices);
+                    hideArea.style.display = 'none';
+                }
+            }
+
+            modal.style.display = 'flex';
+        };
+
+        window.closeGuideModal = () => {
+            document.getElementById('guideModal').style.display = 'none';
+        };
+
+        window.handleGuideBackdrop = (event) => {
+            if (event.target.id === 'guideModal') window.closeGuideModal();
+        };
+
+        window.openLatestAutoNotice = () => {
+            const candidate = getSortedNotices(true).find(([id, notice]) => {
+                if (notice.autoPopup !== true) return false;
+                const version = notice.updatedAt || notice.createdAt || 0;
+                return !isNoticeHidden(id, version);
+            });
+
+            if (candidate) {
+                const [id, notice] = candidate;
+                const version = notice.updatedAt || notice.createdAt || 0;
+                const token = `${id}:${version}`;
+                if (token === lastAutoNoticeToken) return;
+                lastAutoNoticeToken = token;
+                window.openGuideModal(false, id);
+            }
+        };
+
+        window.hideCurrentNotice = (days) => {
+            if (!currentGuideNoticeId || currentGuideNoticeVersion === null) {
+                window.closeGuideModal();
+                return;
+            }
+
+            let hiddenUntil;
+            if (days === 1) {
+                const endOfDay = new Date();
+                endOfDay.setHours(23, 59, 59, 999);
+                hiddenUntil = endOfDay.getTime();
+            } else {
+                hiddenUntil = Date.now() + (days * 24 * 60 * 60 * 1000);
+            }
+
+            localStorage.setItem(
+                getNoticeHideKey(currentGuideNoticeId, currentGuideNoticeVersion),
+                String(hiddenUntil)
+            );
+            window.closeGuideModal();
+        };
+
+        function renderNoticeAdminList() {
+            const select = document.getElementById('noticeSelect');
+            if (!select) return;
+
+            const selectedValue = select.value;
+            select.innerHTML = '<option value="">새 공지 작성</option>';
+
+            getSortedNotices(false).forEach(([id, notice]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = `${notice.active ? '게시' : '비게시'} | ${notice.title || '제목 없음'}`;
+                select.appendChild(option);
+            });
+
+            if (selectedValue && noticesData[selectedValue]) select.value = selectedValue;
+        }
+
+        window.openNoticeAdmin = () => {
+            if (!isAdmin) {
+                alert('관리자 모드에서만 사용할 수 있습니다.');
+                return;
+            }
+            renderNoticeAdminList();
+            document.getElementById('noticeAdminModal').style.display = 'flex';
+        };
+
+        window.closeNoticeAdmin = () => {
+            document.getElementById('noticeAdminModal').style.display = 'none';
+        };
+
+        window.newNoticeForm = () => {
+            document.getElementById('noticeSelect').value = '';
+            document.getElementById('noticeTitle').value = '';
+            document.getElementById('noticeContent').value = '';
+            document.getElementById('noticeActive').checked = true;
+            document.getElementById('noticeAutoPopup').checked = true;
+        };
+
+        window.selectNoticeForEdit = () => {
+            const id = document.getElementById('noticeSelect').value;
+            if (!id || !noticesData[id]) {
+                window.newNoticeForm();
+                return;
+            }
+
+            const notice = noticesData[id];
+            document.getElementById('noticeTitle').value = notice.title || '';
+            document.getElementById('noticeContent').value = notice.content || '';
+            document.getElementById('noticeActive').checked = notice.active === true;
+            document.getElementById('noticeAutoPopup').checked = notice.autoPopup === true;
+        };
+
+        window.saveNotice = async () => {
+            const title = document.getElementById('noticeTitle').value.trim();
+            const content = document.getElementById('noticeContent').value.trim();
+            const selectedId = document.getElementById('noticeSelect').value;
+
+            if (!title) {
+                alert('공지 제목을 입력하세요.');
+                return;
+            }
+            if (!content) {
+                alert('공지 내용을 입력하세요.');
+                return;
+            }
+
+            const now = Date.now();
+            const id = selectedId || `notice_${now}`;
+            const createdAt = selectedId && noticesData[selectedId]
+                ? (noticesData[selectedId].createdAt || now)
+                : now;
+
+            await set(ref(db, `notices/${id}`), {
+                title,
+                content,
+                active: document.getElementById('noticeActive').checked,
+                autoPopup: document.getElementById('noticeAutoPopup').checked,
+                createdAt,
+                updatedAt: now
+            });
+
+            document.getElementById('noticeSelect').value = id;
+            alert(selectedId ? '공지사항이 수정되었습니다.' : '공지사항이 등록되었습니다.');
+        };
+
+        window.deleteNotice = async () => {
+            const id = document.getElementById('noticeSelect').value;
+            if (!id) {
+                alert('삭제할 공지사항을 선택하세요.');
+                return;
+            }
+            if (!confirm('선택한 공지사항을 삭제하시겠습니까?')) return;
+
+            await remove(ref(db, `notices/${id}`));
+            window.newNoticeForm();
+            alert('공지사항이 삭제되었습니다.');
         };
 
         window.closeModal = () => document.getElementById('modal').style.display = 'none';
