@@ -18,7 +18,10 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm ls firebase-admin
+          npm ls @firebase/app
 
       - name: Run collector
         env:
