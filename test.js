@@ -35,7 +35,26 @@ const context = new TuyaContext({
 async function collect() {
   const now = new Date();
   const timestamp = Date.now();
-  const kstTime = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+  const kstTime = now.toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul'
+  });
+
+  const kstHour = Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Seoul',
+      hour: '2-digit',
+      hour12: false
+    }).format(now)
+  );
+
+  // 한국시간 06:00 이상 12:00 미만에만 수집
+  if (kstHour < 6 || kstHour >= 12) {
+    console.log(
+      `[Skip] 현재 한국시간 ${kstHour}시, 수집시간 외입니다.`
+    );
+    process.exit(0);
+  }
 
   try {
     // 1. 파이어베이스에서 대시보드를 통해 등록된 기기 목록 읽기
